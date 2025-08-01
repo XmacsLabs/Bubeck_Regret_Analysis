@@ -1,0 +1,504 @@
+We now extend the analysis of the previous chapter to the following scenario: arms are still points in a convex set $\cK \subset \R^d$, but now losses are not necessarily linear functions of the arms. More precisely the adversary selects loss functions from some set $\cL$ of real-valued functions defined on $\cK$. The pseudo-regret is then defined as:
+$$\oR_n = \E \sum_{t=1}^n  \ell_t(x_t) - \min_{x \in \cK} \E \sum_{t=1}^n \ell_t(x) .$$
+This modification has important consequences.
+For instance with strictly convex losses one has to do local perturbations in order to estimate the loss gradient, this is in contrast to the global perturbations studied in the previous chapter.
+%, because we have to come up with new ways of estimating loss gradients. 
+In agreement with the setting of Chapter~\ref{linear}, we initially focus on the nonstochastic setting, where the forecaster faces an unknown sequence of convex Lipschitz and differentiable losses (in the nonlinear case the regret scales with the Lipschitz constant of losses). Problems of this kind can be viewed as dynamic variants of convex optimization problems, in which the convex function to optimize evolves over time. The bandit constraint can be simply interpreted as the impossibility of computing gradients (because, for instance, we do not have a explicit representation of the function, but it can only be accessed by querying for values at desired points).
+
+We look at two feedback models. In the first one, at each step the forecaster evaluates the loss function at two points: the played point plus an additional point of its choice. In the second one, only the value of the loss evaluated at the played point is made available to the forecaster. We show that while the two-points model allows for a $\scO\bigl(\sqrt{n}\bigr)$ bound on pseudo-regret, in the one-point model a pseudo-regret bound of only $\scO\bigl(n^{3/4}\bigr)$ is achieved. The stochastic setting is investigated in Section~\ref{s:nonlinear-stochastic} where, similarly to Chapter~\ref{stochastic}, we assume that each play of an arm returns a stochastic loss with fixed but unknown mean. Unlike the nonstochastic case, the mean loss function is assumed to be Lipschitz and unimodal, but not necessarily convex.
+For keeping things simple, the stochastic setting is studied in $1$-dimensional case, when arms are points in the unit interval. For this case we show a bound on the pseudo-regret of $\scO\bigl(\sqrt{n}(\log n)\bigr)$.
+
+\section{Two-points bandit feedback}
+%
+We start by analyzing the nonstochastic case in the two-point feedback model: at each time step $t$, the forecaster observes the value of a convex and differentiable loss function $\ell_t$ at the played point $x_t$ and at an extra point $x_t'$ of its choice. If the second point is chosen at random in a neighborhood of the first one, one can use it to compute an estimate of the gradient of $\ell_t$ at $x_t$. Hence, running OSMD on the estimated gradients we obtain a regret bound controlled by the second moments of these estimates. The algorithm we present in this section follows this intuition, although ---for technical reasons--- the gradient is estimated at a point which is close but distinct from the point actually played.
+
+We focus our analysis on OSMD with Legendre function $F = \tfrac{1}{2}\norm{\cdot}^2$, where $\norm{\cdot}$ is the Euclidean norm. The resulting strategy, Online Stochastic Gradient Descent (OSGD) is sketched below here.
+%
+\bookbox{
+{\em OSGD (Online Stochastic Gradient Descent):}
+
+\smallskip\noindent
+Parameters: Closed and convex set $\cK\subseteq\R^d$, learning rate $\eta > 0$.\\
+Initialize: $x_1 = (0,\dots,0)$.
+
+\smallskip\noindent
+For each round $t=1,2,\dots,n$
+\begin{itemize}
+\vspace{-2mm}
+\item[(1)] Observe stochastic estimate $\gtilde_t(x_t)$ of $\nabla\ell_t(x_t)$;
+\item[(2)] $x_{t+1}' = x_t - \eta\,\gtilde_t(x_t)$;
+\item[(3)] ${\dt x_{t+1} = \argmin_{y \in \cK} \norm{y - x_{t+1}'} }$;
+\end{itemize}
+}
+
+We now introduce our main technical tool: the two-point gradient estimate. The two points on which the loss value is queried at time $t$ are denoted by $X_t^+$ and $X_t^-$. OSGD always plays one of these two points at random.
+
+Let $\Ball = \theset{x \in \R^d}{\norm{x} \le 1}$ be the unit ball in $\R^d$ and $\Sphere = \theset{x \in \R^d}{\norm{x} = 1}$ be the unit sphere.
+Fix $\delta > 0$ and introduce the notations $X_t^+ = x_t + \delta S$ and $X_t^- = x_t - \delta S$, where $x_t \in \cK$ and $S$ is a random variable with uniform distribution in $\Sphere$. Then, for any convex loss $\ell_t$, the two-point gradient estimate $\gtilde_t$ is defined by
+\begin{equation}
+\label{eq:two-point-est}
+    \gtilde_t(x_t) = \frac{d}{2\delta}\bigl(\ell_t(X_t^+) - \ell_t(X_t^-) \bigr)S~.
+\end{equation}
+In order to compute the expectation of $\gtilde_t$, first note that by symmetry
+\[
+    \E\,\gtilde_t(x) = \frac{d}{\delta}\,\E\bigl[\ell_t(x + \delta S)S\bigr]~.
+\]
+In order to compute the expectation in the right-hand side we need the following preliminary lemma.
+%
+\begin{lemma}
+\label{l:divergence}
+For any differentiable function $\ell : \R^d \to \R$
+\[
+    \nabla\int_{\Ball} \ell(x + \delta b)\,db = \int_{\Sphere} \ell(x + \delta s)s\,d\sigma(s)
+\]
+where $\sigma$ is the unnormalized spherical measure.
+\end{lemma}
+%
+\begin{proof}
+The proof of this result is an easy consequence of the Divergence Theorem,
+\begin{align*}
+    \nabla\int_{\Ball} \ell(x + \delta b)\,db
+&=
+    \int_{\Ball} \nabla \ell(x + \delta b)\,db
+\\ &=
+    \int_{\Sphere} \frac{1}{\delta} \ell(x + \delta s)s\,d \sigma(s)
+\\ &=
+    \frac{1}{\delta} \int_{\Sphere} \ell(x + \delta s)s\,d \sigma(s)~.
+\end{align*}
+\end{proof}
+%
+We are now fully equipped to compute the expectation of $\gtilde_t$.
+%
+\begin{lemma}
+\label{l:stokes}
+If $B$ is a random variable with uniform distribution in $\Ball$ and $S$ is a random variable with uniform distribution in $\Sphere$, then for all differentiable functions $\ell_t : \R^d\to\R$,
+\[
+    \frac{d}{\delta}\E\bigl[\ell(x + \delta S)S\bigr] = \nabla\E\,\ell(x + \delta B)~.
+\]
+\end{lemma}
+%
+\begin{proof}
+First consider the easy one-dimensional case. Namely, $\cK = [a,b]$ for some reals $a < b$. Note that, in this case, $S$ is uniform in $\{-1,+1\}$ whereas $B$ is uniform in $[-1,+1]$. Then
+\begin{align*}
+    \E\,\ell(x + \delta B)
+=
+    \frac{1}{2\delta}\int_{-\delta}^{\delta} \ell(x + \ve)\,d\ve
+=
+    \frac{L(x+\delta) - L(x-\delta)}{2\delta}
+\end{align*}
+by the fundamental theorem of calculus, where $L$ is the antiderivative of $\ell$ satisfying $L' = \ell$.
+This gives
+\[
+    \frac{d}{dx} \E\,\ell(x + \delta B) = \frac{\ell(x+\delta) - \ell(x-\delta)}{2\delta}~.
+\]
+On the other hand,
+\[
+    \frac{1}{\delta}\,\E\bigl[\ell(x + \delta S)S\bigr]
+=
+    \frac{\ell(x+\delta) - \ell(x-\delta)}{2\delta}~.
+\]
+Hence $\tfrac{1}{\delta}\E\bigl[\ell(x + \delta S)S\bigr] = \tfrac{d}{dx}\E\,\ell(x + \delta B)$ and the $1$-dimensional case is established. Note that the equivalence we just proved relates an integral over the unit sphere $\Sphere$ to an integral over the unit ball $\Ball$. In $d$ dimensions, Lemma~\ref{l:divergence} delivers the corresponding generalized identity
+\[
+    \frac{1}{\delta}\int_{\Sphere} \ell(x + \delta s)s\, d\sigma(s)
+=
+    \nabla\int_{\Ball} \ell(x + \delta b)\, db~.
+\]
+Now, since $\mathrm{Vol}(\Sphere) = d\,\mathrm{Vol}(\Ball)$ we immediately obtain
+\[
+    \frac{d}{\delta}\E\bigl[\ell(x + \delta S)S\bigr]
+=
+    \nabla\E\,\ell(x + \delta B)
+\]
+concluding the proof.
+\end{proof}
+%
+We have thus established $\E\,\gtilde_t(x) = \nabla\E\,\ell_t(x + \delta B)$, showing that $\gtilde_t$ provides an unbiased estimate of a smoothed version $\tloss_t(x) = \E\,\ell_t(x + \delta B)$ of the loss function $\ell_t$.
+
+We can measure how well $\tloss_t$ approximates $\ell_t$ by exploiting the Lipschitz assumption,
+%
+\begin{align}
+\nonumber
+    \bigl|\ell_t(x) - \tloss_t(x)\bigr|
+&=
+    \bigl|\ell_t(x) - \E\,\ell_t(x + \delta B)\bigr|
+\\ &\le
+\nonumber
+    \E\bigl|\ell_t(x) - \ell_t(x + \delta B)\bigr|
+\\ &\le
+\nonumber
+    \delta G\,\E\norm{B}
+\\ &\le
+\label{eq:lip-tloss}
+    \delta G~.
+\end{align}
+%
+The next lemma relates the regret under the losses $\ell_t$ to the regret under their smoothed versions $\tloss_t$. An additional issue taken into account by the lemma is that OSGD might play a point close to the boundary of the set $\cK$. In this case the perturbed point on which the gradient is estimated could potentially be outside of $\cK$. In order to prevent this from happening we need to run OSGD on a shrunken set $(1-\xi)\cK$.
+%
+\begin{lemma}
+\label{l:two-point}
+Let $\cK\subseteq\R^d$ be a convex set such that $\cK\subseteq R\,\Ball$ for some $R \ge 0$, and fix $0 \le \xi \le 1$.
+For any sequence $\ell_1,\ell_2,\dots$ of $G$-Lipschitz differentiable and convex losses, and for any sequence $x_1,x_2,\ldots\in (1-\xi)\cK \subseteq\R^d$, the following holds
+\begin{align*}
+    \frac{1}{2}\sum_{t=1}^n &\bigl(\ell_t(X_t^+) + \ell_t(X_t^-)\bigr) - \sum_{t=1}^n \ell_t(x)
+\\& \le
+    \sum_{t=1}^n \tloss_t(x_t) - \sum_{t=1}^n \tloss_t\bigl((1-\xi)x\bigr) + 3\delta G n + \xi GR n
+\end{align*}
+for all realizations of the random process $\bigl(X_t^+,X_t^-\bigr)_{t \ge 1}$.
+\end{lemma}
+%
+\begin{proof}
+Using the Lipschitzness of $\ell_t$ and~(\ref{eq:lip-tloss}) we obtain
+\begin{align*}
+    \frac{1}{2} &\bigl(\ell_t(X_t^+) + \ell_t(X_t^-)\bigr) + \tloss_t\bigl((1-\xi)x\bigr)
+\\ &\le
+    \frac{1}{2} \Bigl(\ell_t(x_t) + \delta G \norm{S} + \ell_t(x_t) + \delta G \norm{S} \Bigr) + \ell_t\bigl((1-\xi)x\bigr) + \delta G
+\\ &\le
+    \ell_t(x_t) + \ell_t\bigl(x\bigr) + 2\delta G + \xi GR
+\\ &\le
+    \tloss_t(x_t) + \ell_t\bigl(x\bigr) + 3\delta G + \xi GR~.
+\end{align*}
+In the second step we used $\tloss_t\bigl((1-\xi)x\bigr) \le \xi G\norm{x} \le \xi GR$ which results from the Lipschitzness of $\ell_t$ and the assumption $\cK\subseteq R\,\Ball$.
+\end{proof}
+%
+Next, we show that the second moment of $\gtilde_t$ can be controlled by exploiting the Lipschitzness of $\ell_t$. In particular,
+\begin{align*}
+    \norm{\gtilde_t(x)}
+=
+    \frac{d}{2\delta}\bigl|\ell_t(x + \delta S) - \ell_t(x - \delta S)\bigr|\norm{S}
+\le
+    \frac{Gd}{2\delta}\norm{2\delta S}
+=
+    Gd~.
+\end{align*}
+%
+We are now ready to prove the main result of this section. Namely, that the pseudo-regret of OSGD run using the gradient estimate~(\ref{eq:two-point-est}) is of order $\sqrt{n}$. We assume that the point $\tX_t$ played by OSGD at each time $t$ is randomly drawn between the two points $X_t^+$ and $X_t^-$ where the loss function is queried.
+%
+\begin{theorem}[Regret of OSGD with two-points feedback]
+\label{th:two-point}
+Let $\cK\subseteq\R^d$ be a closed convex set such that $r\,\Ball\subseteq\cK\subseteq R\,\Ball$ for some $r,R > 0$. 
+%
+Let $\cL$ be a set of $G$-Lipschitz differentiable and convex losses.
+%
+Fix $\delta > 0$ and assume OSGD is run on $\bigl(1-\tfrac{\delta}{r}\bigr)\cK$ with learning rate $\eta > 0$ and gradient estimates~(\ref{eq:two-point-est}),
+\[
+    \gtilde_t(x_t) = \frac{d}{2\delta}\bigl( \ell_t(X_t^+) - \ell_t(X_t^-) \bigr)S_t
+\]
+where $S_1,S_2,\dots\in\Sphere$ are independent. For each $t=1,2,\dots$ let $\tX_t$ be drawn at random between $X_t^+$ and $X_t^-$. Then
+%, for any sequence $\ell_1,\ell_2,\dots$ of $G$-Lipschitz differentiable and convex losses 
+the following holds
+\[
+%    \E\sum_{t=1}^n \ell_t(\tX_t) - \inf_{x\in\cK} \sum_{t=1}^n \ell_t(x)
+\oR_n
+\le
+    \frac{R^2}{\eta} + \eta (Gd)^2 n + \delta\left(3 + \frac{R}{r} \right) G n~.
+\]
+Moreover, if $\eta = \tfrac{R}{GD\sqrt{n}}$ then for $\delta\to 0$ we have that
+\[
+%    \E\sum_{t=1}^n \ell_t(\tX_t) - \inf_{x\in\cK} \sum_{t=1}^n \ell_t(x)
+\oR_n
+\le
+    2RGd\sqrt{n}~.
+\]
+\end{theorem}
+%
+\begin{proof}
+First of all, we must check that the points $X_t^+ = x_t + \delta S$ and $X_t^- = x_t - \delta S$ on which $\ell_t$ is queried belong to $\cK$. To see this, recall that $x_t\in \bigl(1-\tfrac{\delta}{r}\bigr)\cK$. Now, setting $\alpha = \tfrac{\delta}{r}$ we have that $X_t^+,X_t^- \in (1-\alpha)\cK + \alpha r\,\Sphere$. Since $r\,\Sphere \subseteq \cK$ and $\cK$ is convex, we obtain $(1-\alpha)\cK + \alpha r\,\Sphere \subseteq (1-\alpha)\cK + \alpha\cK \subseteq \cK$. Hence, using Lemma~\ref{l:two-point} with the choice $\xi = \tfrac{\delta}{r}$ we immediately get that for all $x\in\cK$,
+\begin{align*}
+    \sum_{t=1}^n & \E( \ell_t(\tX_t) | X_t^+, X_t^-) - \sum_{t=1}^n \ell_t(x)
+\\& \le
+    \frac{1}{2}\sum_{t=1}^n \bigl(\ell_t(X_t^+) + \ell_t(X_t^-)\bigr) - \sum_{t=1}^n \ell_t(x)
+\\& \le
+    \sum_{t=1}^n \tloss_t(x_t) - \sum_{t=1}^n \tloss_t\Bigl(\bigl(1-\tfrac{\delta}{r}\bigr)x\Bigr) + \delta\left(3 + \frac{R}{r} \right) G n~.
+\end{align*}
+Since we already related the loss of $\tX_t$ to the loss of $x_t$, we can now apply Theorem~\ref{th:OSMD2} in the special case of $\tilde{x}_t = x_t$ and with the sequence of losses $(\tloss_t)$. This gives
+\begin{align*}
+    \E \sum_{t=1}^n \tloss_t(x_t) - \E \sum_{t=1}^n \tloss_t\Bigl(\bigl(1-\tfrac{\delta}{r}\bigr)x\Bigr)
+& \le
+    \frac{R^2}{\eta} + \eta\sum_{t=1}^n \E \norm{\gtilde_t(x_t)}^2
+\\& \le
+    \frac{R^2}{\eta} + \eta (Gd)^2 n
+\end{align*}
+where we overapproximated $\norm{\bigl(1-\tfrac{\delta}{r}\bigr)\cK} \le \norm{\cK} = R$. This concludes the proof.
+\end{proof}
+
+
+\section{One-point bandit feedback}
+%
+Building on the analysis of the previous section, it is not hard to show that the pseudo-regret can be bounded even when the loss function at each time $t$ is queried in only \textsl{one} point. However, we pay this reduced bandit feedback with a worse rate of $n^{3/4}$ in the pseudo-regret bound. It is not known if this rate is optimal, or if it is possible to get a $\sqrt{n}$ regret as in the two-points setting.
+
+The one-point estimate at time $t$ is defined by
+\begin{equation}
+\label{eq:one-point-est}
+    \gtilde_t(x) = \frac{d}{\delta}\ell_t(x + \delta S)S
+\end{equation}
+where $S$ is drawn at random from $\Sphere$. Obviously, Lemma~\ref{l:stokes} can be applied to get
+$
+    \E\,\gtilde_t(x) = \nabla\tloss_t(x)
+$
+where, we recall, $\tloss_t(x) = \E\,\ell_t(x + \delta B)$. Differences with the two-point case arise when we bound the second moment of this new $\gtilde_t$. Indeed, if $x + \delta S \in \cK$ and the maximum value of each $\ell_t$ in $\cK$ is bounded by $L$, then
+\[
+    \norm{\gtilde_t(x)}
+=
+    \frac{d}{\delta}\bigl|\ell_t(x + \delta S)\bigr|\norm{S}
+\le
+    \frac{dL}{\delta}~.
+\]
+Note the inverse dependence on $\delta$. This dependence plays a key role in the final bound, as the next result shows.
+\begin{theorem}[Regret of OSGD with one-point feedback]
+Let $\cK\subseteq\R^d$ be a closed convex set such that $r\,\Ball\subseteq\cK\subseteq R\,\Ball$ for some $r,R > 0$. 
+%
+Let $\cL$ be a set of $G$-Lipschitz differentiable and convex losses, uniformly bounded by $L$ (that is $||\ell||_{\infty} \leq L, \forall \ell \in \cL$). 
+%
+Fix $\delta > 0$ and assume OSGD is run on $\bigl(1-\tfrac{\delta}{r}\bigr)\cK$ with learning rate $\eta > 0$ and gradient estimates~(\ref{eq:one-point-est}),
+\[
+    \gtilde_t(x_t) = \frac{d}{\delta}\ell_t(\tX_t)S_t
+\]
+where $\tX_t = x_t + \delta S_t$ and $S_1,S_2,\dots\in\Sphere$ are independent. 
+Then
+%, for any sequence $\ell_1,\ell_2,\dots$ of $G$-Lipschitz differentiable and convex losses such that ${\dt \max_{t\ge %1}\max_{x\in\cK}\ell_t(x) \le L}$, 
+the following holds
+\[
+ %   \E\sum_{t=1}^n \ell_t(\tX_t) - \inf_{x\in\cK} \sum_{t=1}^n \ell_t(x)
+\oR_n
+\le
+    \frac{R^2}{\eta} + \frac{(dL)^2}{\delta^2}\eta n + \delta\left(3 + \frac{R}{r} \right) G n~.
+\]
+Moreover, if
+\[
+    \delta = \frac{1}{(2n)^{1/4}}\sqrt{\frac{RdL}{\bigl(3 + \tfrac{R}{r} \bigr)G}}
+\qquad\text{and}\qquad
+    \eta = \frac{1}{(2n)^{3/4}}\sqrt{\frac{R^3}{dL\bigl(3 + \tfrac{R}{r} \bigr)G}}
+\]
+then
+\[
+ %   \E\sum_{t=1}^n \ell_t(\tX_t) - \inf_{x\in\cK} \sum_{t=1}^n \ell_t(x)
+\oR_n
+\le
+    4 n^{3/4}\sqrt{RdL\bigl(3 + \tfrac{R}{r} \bigr)G}~.
+\]
+\end{theorem}
+%
+\begin{proof}
+The proof follows along the same lines as the proof of Theorem~\ref{th:two-point}. Indeed, we can show that the points $\tX_t = x_t + \delta S$ on which $\ell_t$ is queried belong to $\cK$. Then, using an easy modification of Lemma~\ref{l:two-point} we get that for all $x\in\cK$,
+\begin{align*}
+    \sum_{t=1}^n & \E(\ell_t(\tX_t)| X_t^+, X_t^-) - \sum_{t=1}^n \ell_t(x)
+\\& \le
+    \sum_{t=1}^n \tloss_t(x_t) - \sum_{t=1}^n \tloss_t\Bigl(\bigl(1-\tfrac{\delta}{r}\bigr)x\Bigr) + \delta\left(3 + \frac{R}{r} \right) G n~.
+\end{align*}
+Applying Theorem~\ref{th:OSMD2} as in the proof of Theorem~\ref{th:two-point} gives
+\begin{align*}
+    \E \sum_{t=1}^n \tloss_t(x_t) - \E \sum_{t=1}^n \tloss_t\Bigl(\bigl(1-\tfrac{\delta}{r}\bigr)x\Bigr)
+& \le
+    \frac{R^2}{\eta} + \eta\sum_{t=1}^n \E \norm{\gtilde_t(x_t)}^2
+\\& \le
+    \frac{R^2}{\eta} + \frac{(dL)^2}{\delta^2}\eta n~.
+\end{align*}
+\end{proof}
+
+
+\section{Nonlinear stochastic bandits}
+\label{s:nonlinear-stochastic}
+%
+We conclude with a simple example of nonlinear bandits in the stochastic setting. Unlike the gain-based analysis of stochastic bandits of Chapter~\ref{stochastic}, here we keep in with the convention used throughout this chapter and work exclusively with losses.
+
+We consider a simple unidimensional setting where arms are points in the unit interval $[0,1]$. If at time $t$ a point $x_t \in [0,1]$ is played, the loss is the realization of an independent random variable $Y_t\in [0,1]$ with expected value $\E[Y_t | x_t] = \mu(x_t)$, where $\mu : [0,1]\to [0,1]$ is a fixed but unknown mean loss function. Similarly to Chapter~\ref{stochastic}, here the pseudo-regret after $n$ plays of a given strategy can be rewritten as
+\[
+    \oR_n = \sum_{t=1}^n \mu(x_t) - n\max_{x\in [0,1]}\mu(x)
+\]
+where $x_1,\dots,x_n \in [0,1]$ denote the points played by the strategy.
+
+Throughout this section, we assume that $\mu : [0,1] \to [0,1]$ is unimodal, but not necessarily convex. This means there exist a unique $x^* = \argmin_{x \in [0,1]} \mu(x)$ such that $\mu(x)$ is monotone decreasing for $x \in [0,x^*]$ and monotone increasing for $x \in [x^*,1]$. For example, if $\mu$ can be written as $\mu(x) = x\,f(x)$ where $f : [0,1] \to [0,1]$ is differentiable, monotone decreasing, and such that $x\,f'(x)$ is strictly decreasing with $f(0) > 0$, then $\mu$ is unimodal.
+
+The bandit strategy we analyze in this section is based on the golden section search due to \cite{kiefer1953sequential}, which is a general algorithm for finding the extremum of a unimodal function. Similarly to binary search, each step of golden section search narrows the interval in which the extremum is found by querying the function value at certain points that are chosen depending on the outcome of previous queries. Each query shrinks the interval by a factor of $\tfrac{1}{\varphi} = 0.618\dots$, where $\varphi =  \tfrac{1}{2}\bigl(1 + \sqrt{5}\bigr)$ is the golden ratio.
+
+In our case, queries (i.e., plays) at $x$ return a perturbed version of $\mu(x)$. Since $\mu$ is bounded, Hoeffding bounds ensure that we can find the minimum of $\mu$ by repeatedly querying each point $x$ requested by the golden search algorithm. However, in order to have a lower bound on the accuracy with which each $\mu$ needs to be estimated, we must assume the following condition: there exists $C_L > 0$ such that
+\begin{equation}
+\label{eq:strongmax}
+    \bigl|\mu(x)-\mu(x')\bigr| \ge C_L|x-x'|
+\end{equation}
+for each $x,x'$ that belong either to $[0,x^*-1/C_L]$ or to $[x^*+1/C_L,1]$.
+
+Finally, irrespective to the uncertainty in the evaluation of $\mu$, in order to bound the regret incurred by golden section search we need a Lipschitz condition on $\mu$. Namely, there exists $C_H > 0$ such that $\bigl|\mu(x)-\mu(x')\bigr| \le C_H|x-x'|$ for all $x,x'\in [0,1]$.
+
+We are now ready to introduce our stochastic version of the golden section search algorithm.
+%
+\bookbox{
+{\em SGS (Stochastic Golden Search):}
+
+\smallskip\noindent
+Parameters: $\ve_1,\ve_2,\dots > 0$.\\
+Initialize:
+$
+    x_A = 0 \quad x_B = \frac{1}{\varphi^2} \quad x_C = 1
+$.
+
+\smallskip\noindent
+For each stage $s=1,\dots,n$
+\begin{itemize}
+\item[(1)] Let
+${\dt
+x_B' = \left\{ \begin{array}{cl}
+        x_B - \tfrac{1}{\varphi^2}(x_B - x_A) & x_B - x_A > x_C - x_B
+    \\[1mm]
+        x_B + \tfrac{1}{\varphi^2}(x_C - x_B) & \text{otherwise}
+    \end{array} \right.
+}$
+and rename points $x_B,x_B'$ so that $x_A < x_B < x_B' < x_C$.
+\item[(2)] Play each point in $\{x_A,x_B,x_B',x_C\}$ for $\tfrac{2}{\ve_s^2}\ln(6n)$ times and let $\xhat$ be the point with lowest total loss in this stage.
+\item[(3)] If $\xhat\in\{x_A,x_B\}$ then eliminate interval $(x_B',x_C]$ and let $x_C = x_B'$,
+\item[(4)] else eliminate interval $[x_A,x_B)$ and let $x_A = x_B$.
+\end{itemize}
+}
+
+Recall that golden section search proceeds as follows: given three queried points $x_A < x_B < x_C$ where the distance of $x_B$ to the other two points is in the golden ratio ($x_B$ might be closer to $x_A$ or to $x_C$ depending on past queries), the next point $x_B'$ is queried in the largest interval between $x_B-x_A$ and $x_C-x_B$ so that the distance of $x_B'$ to the extrema of that largest interval is in the golden ratio. Assume the resulting ordering is $x_A < x_B < x_B' < x_C$. Then we drop either $[x_A,x_B)$ or $(x_B',x_C]$ according to whether the smallest value of $\mu$ is found in, respectively, $\{x_B',x_C\}$ or $\{x_B',x_C\}$. The remaining triplet is such that the distance of the middle point to the other two is again in the golden ratio.
+
+Using elementary algebraic identities for $\varphi$, one can show that setting $x_C-x_A = 1$ the following equalities hold at any step of SGS:
+\begin{equation}
+\label{eq:sgs-ratios}
+    x_B-x_A = \frac{1}{\varphi^2} \quad x_B'-x_B = \frac{1}{\varphi^3} \quad x_C - x_B' = \frac{1}{\varphi^2}~.
+\end{equation}
+Since either $x_B-x_A$ or $x_C - x_B'$ are eliminated at each stage, at each stage SGS shrinks the search interval by a factor of $1 - \varphi^{-2} = \tfrac{1}{\varphi}$.
+
+Let $[x_{A,s},x_{B,s}]$ be the search interval at the beginning of stage $s+1$, where $x_{A,0} = 0$ and $x_{C,0} = 1$.
+\begin{lemma}
+If $\ve_s = C_L\varphi^{-(s+3)}$ then
+\[
+    \P\Bigl(x^* \not\in [x_{A,s},x_{C,s}]\Bigr) \le \frac{s}{n}
+\]
+holds uniformly over all stages $s \ge 1$.
+\end{lemma}
+%
+\begin{proof}
+Once the interval containing $x^*$ is eliminated it is never recovered, thus we have
+\begin{align}
+\nonumber
+    \P&\Bigl(x^* \not\in [x_{A,s},x_{C,s}]\Bigr)
+\le
+    \P\Bigl(x^* \not\in [x_{A,s-1},x_{C,s-1}]\Bigr)
+\\ &\quad
+\label{eq:sgs-rec}
+    + \P\Bigl(x^* \not\in [x_{A,s},x_{C,s}] \,\Big|\, x^* \in [x_{A,s-1},x_{C,s-1}]\Bigr)~.
+\end{align}
+Let $X_s = \{x_{A,s-1},x_{B,s-1},x_{B,s-1}',x_{C,s-1}\}$ where $x_{B,s-1} < x_{B,s-1}'$ are computed in step $1$ of stage $s$.
+Let $\muhat_s(x)$ be the sample loss of point $x\in X_s$ in stage $s$ and let $\xhat_s = \argmin_{x\in X_s}\muhat(x)$. Since at stage $s$ every point in $X_s$ is played $\tfrac{2}{\ve_s^2}\ln(6n)$ times\footnote{For simplicity, we assume these numbers are integers.}, Hoeffding bounds imply that $\bigl|\mu(x)-\muhat_s(x)\bigr| \le \tfrac{1}{2}\ve_s$ with probability at least $1-\tfrac{1}{6n}$ for all $x\in X_s$ simultaneously. Let
+\[
+    x^*_s = \argmin_{x\in X_s}\mu(x)~.
+\]
+Now assume $x^* \in [x_{A,s-1},x_{B,s-1}]$. Then $x^* \not\in [x_{A,s},x_{C,s}]$ implies $\muhat_s(x_{B',s-1}) < \muhat(x_{B,s-1})$ or $\muhat_s(x_{C,s-1}) < \muhat(x_{B,s-1})$. Similarly, assume $x^* \in [x_{B',s-1},x_{C,s-1}]$. Then $x^* \not\in [x_{A,s},x_{C,s}]$ implies $\muhat_s(x_{A,s-1}) < \muhat(x_{B',s-1})$ or $\muhat_s(x_{B,s-1}) < \muhat(x_{B',s-1})$. In both cases, we need to compare three values of $\mu$ on the same side with respect to $x^*$. (When $x^* \in [x_{B,s-1},x_{B',s-1}]$ we always have $x^* \in [x_{A,s},x_{C,s}]$.) Hence, we can apply our assumption involving $C_L$. More precisely, (\ref{eq:sgs-ratios}) implies that after $s$ stages the search interval has size $\varphi^{-s}$ and $\min\{x_{B,s}-x_{A,s}, x_{B,s}'-x_{B,s}, x_{C,s} - x_{B,s}'\} = \varphi^{-(s+3)}$~. Hence, introducing
+\[
+    \Delta_s = \min\Bigl\{\big|\mu(x_{B,s})-\mu(x_{A,s})\big|, \big|\mu(x_{B,s}')-\mu(x_{B,s})\big|, \big|\mu(x_{C,s}) - \mu(x_{B,s}')\big|\Bigr\}
+\]
+we have
+\[
+    \Delta_s
+\ge
+    C_L\min\{x_{B,s}-x_{A,s}, x_{B,s}'-x_{B,s}, x_{C,s} - x_{B,s}'\} \ge C_L\varphi^{-(s+3)} = \ve_s~.
+\]
+Let $T_s = \tfrac{8}{\ve_s^2}\ln(6n)$ the length of stage $s$. We can write
+\begin{align*}
+    \P&\Bigl(x^* \not\in [x_{A,s},x_{C,s}] \,\Big|\, x^* \in [x_{A,s-1},x_{C,s-1}]\Bigr)
+=
+    \P\bigl(\muhat_s(\xhat_s) < \muhat(x^*_s)\bigr)
+\\ &\le
+    \sum_{x \in X_s\setminus\{x^*_s\}}\P\bigl(\muhat_s(x) < \muhat(x^*_s)\bigr)
+\\ &\le
+    \sum_{x \in X_s\setminus\{x^*_s\}}\left( \P\left(\muhat_s(x) < \mu(x) - \frac{\Delta_s}{2}\right) + \P\left(\mu(x^*_s) < \muhat(x^*_s) - \frac{\Delta_s}{2}\right)\right)
+\\ &\le
+    6\,e^{-T_s\Delta_s^2/8} 
+\\ &\le
+    6\,e^{-T_s\ve_s^2/8} 
+\le
+    \frac{1}{n}~.
+\end{align*}
+Substituting this in~(\ref{eq:sgs-rec}) and recurring gives the desired result.
+\end{proof}
+%
+\begin{theorem}[Regret of SGS]
+For any unimodal and $C_H$-Lipschitz mean loss function $\mu : [0,1] \to [0,1]$ that satisfies~(\ref{eq:strongmax}),
+if the SGS algorithm is run with $\ve_s = C_L\varphi^{-(s+3)}$ then
+\[
+    \oR_n \le \frac{C_H}{C_L^2}8\varphi^6\ln(6n) \left[ \frac{2\varphi}{\varphi-1}\sqrt{1 + C_L^2 n} + \frac{1}{4}\log_{\phi}^2\bigl(1 + C_L^2 n\bigr) \right]~.
+\]
+\end{theorem}
+%
+\begin{proof}
+We start by decomposing the pseudo-regret as follows,
+%\begin{align*}
+%    \oR_n
+%\le
+%    \sum_{s=1}^S \oR^{(s)}
+%&\le
+%    \sum_{s=1}^S T_s \left(\min_{x \in A_s}\mu(x) - \mu(x^*)\right)
+%\\ &\quad
+%    + \sum_{s=1}^S \left( \sum_{t\in T_s} \mu(x_t) - T_s \min_{x \in A_s} \mu(x) \right)~.
+%\end{align*}
+$$\oR_n \leq \sum_{s=1}^S T_s \left(\min_{x \in A_s}\mu(x) - \mu(x^*)\right) + \sum_{s=1}^S \left( \sum_{t\in T_s} \mu(x_t) - T_s \min_{x \in A_s} \mu(x) \right) .$$
+Using the Lipschitz assumption
+\[
+    \max_{x,x'\in A_s}\bigl|\mu(x)-\mu(x')\bigr| \le C_H\,\bigl|x_{C,s} - x_{A,s}\bigr|
+\]
+and recalling that $\bigl|x_{C,s} - x_{A,s}\bigr| \le \varphi^{-s}$, we bound the first term in this decomposition as follows
+\begin{align*}
+    \sum_{s=1}^S T_s \left(\min_{x \in A_s}\mu(x) - \mu(x^*)\right)
+&\le
+    T_s C_H \bigl|x_{C,s} - x_{A,s}\bigr| \, \P\Bigl(x^* \in [x_{A,s},x_{C,s}]\Bigr)
+\\ &\quad
+    + T_s C_H \P\Bigl(x^* \not\in [x_{A,s},x_{C,s}]\Bigr)
+\\ &\le
+    \frac{T_s C_H}{\varphi^s} + T_s C_H \frac{s}{n}~.
+\end{align*}
+The second term is controlled similarly,
+\begin{align*}
+    \sum_{s=1}^S \left( \sum_{t\in T_s} \mu(x_t) - T_s \min_{x \in A_s} \mu(x) \right)
+\le
+    T_s C_H \bigl|x_{C,s} - x_{A,s}\bigr|
+\le
+    \frac{T_s C_H}{\varphi^s}~.
+\end{align*}
+Hence we get an easy expression for the regret,
+\begin{align}
+\nonumber
+    \oR_n
+&\le
+    C_H \sum_{s=1}^S T_s\left(\frac{2}{\varphi^s} + \frac{s}{n}\right)
+\\& \le
+\label{eq:sgs-th}
+    \frac{C_H}{C_L^2}8\varphi^6\ln(6n) \sum_{s=1}^S \varphi^{2s}\left(\frac{2}{\varphi^s} + \frac{s}{n}\right)~.
+\end{align}
+We now compute an upper bound on the number $S$ of stages,
+\begin{align*}
+    n \le \sum_{s=1}^S T_s = \frac{8\varphi^6}{C_L^2}\ln(6n)\sum_{s=1}^S \varphi^{2s} \le \frac{8\varphi^6}{C_L^2}\ln(6n)\frac{\varphi^{2S+2}}{\varphi^2 - 1}~.
+\end{align*}
+Solving for $n$ and overapproximating we get
+\[
+    S \le \frac{1}{2}\log_{\phi}\bigl(1 + C_L^2 n\bigr)~.
+\]
+Therefore, the sum in~(\ref{eq:sgs-th}) is bounded as follows 
+\begin{align*}
+    2\sum_{s=1}^S \varphi^s + S^2
+&\le
+    \frac{2\varphi}{\varphi-1}\varphi^S + S^2
+\\&\le
+    \frac{2\varphi}{\varphi-1}\sqrt{1 + C_L^2 n} + \frac{1}{4}\log_{\phi}^2\bigl(1 + C_L^2 n\bigr)~.
+\end{align*}
+Substituting the above in~(\ref{eq:sgs-th}) concludes the proof.
+\end{proof}
+
+
+\section{Bibliographic remarks}
+Gradient-free methods for stochastic approximation have been studied for a long time ---see the bibliographic remarks at the end of Chapter~\ref{linear} for some references. However, relatively few results provide regret bounds. The approach presented in this chapter for online convex optimization with bandit feedback was pioneered by \citep{FKM05} and~\citep{kleinberg2004nearly}. The improved rate for the two-points model was later shown in \cite{ADX10}. 
+
+While the results for nonlinear bandits in the adversarial model are still scarse, there is a far richer body of work in the stochastic model. The result based on golden section search presented in Section~\ref{s:nonlinear-stochastic} is due to~\citep{yu2011unimodal}. It represents only a tiny portion of the known results in the stochastic model. In the general case of Lipschitz mean-payoff on a compact subset of $\R^d$, it can be shown that the minimax regret is $\Omega\bigl(n^{\frac{d+1}{d+2}}\bigr)$. Thus the rate rapidly deteriorates as the dimension increases, a phenomenon known as the {\em curse of dimensionality}. However it was shown in \citep{KSU08} and \citep{BMSS09} that under a generalized version of equation \eqref{eq:strongmax} it is possible to circumvent the curse of dimensionality and obtain a regret of $\tilde{O}(\sqrt{n})$. This result builds upon and generalizes a sequence of works that include the discretization approach (for the $1$-dimensional case) of \citep{kleinberg2004nearly} and \citep{auer2007improved}, as well as the method of \citep{cope2009regret} based on the Kiefer-Wolfowitz procedure (a classical method of stochastic optimization). The key new algorithmic idea introduced in \citep{KSU08} and \citep{BMSS09}  is to adaptively partition the set of actions in order to exploit the smoothness of the mean-payoff function around its maximum. We refer the reader to \cite{BMSS11} for the details of this result (which is much more general than what we briefly outlined, in particular it applies for metric spaces, or even more general action sets), as well as a more precise historical account. 
+
+Another direction for nonlinear stochastic bandits was recently investigated in \citep{agarwal2011stochastic}. In this work the authors study the case of a convex mean loss function, and they show how to combine the zeroth-order optimization method of \citep{NY83} with a ``center point device'' to obtain a regret of $\tilde{O}(\sqrt{n})$.
+
+A more general version of nonlinear stochastic bandit was also studied in \cite{AKS11}. In this paper the authors assume that the mean-payoff function lies in some known set of functions $\cF$. They define a notion of complexity for the class $\cF$, the haystack dimension $\mathrm{HD}(\cF)$, and they show that the worst case regret in $\cF$ is lower bounded by $\mathrm{HD}(\cF)$. Unfortunately their upper bound does not match the lower bound, and the authors suggest that the definition of the haystack dimension should be modified in order to obtain matching upper and lower bound.
+
+Finally, a related problem in a Bayesian setting was studied in~\cite{SKKS10} and~\cite{GAOS10}, where it is assumed that the payoff functions are drawn from Gaussian processes.
+
+%
+%
+%
+%The study of bandit feedback in online convex optimization was pioneered by \citep{FKM05} and~\citep{kleinberg2004nearly}. The improved rate for the two-point model was later shown in \cite{ADX10}. Gradient-free methods for stochastic approximation have been studied for a long time ---see the bibliographic remarks at the end of Chapter~\ref{linear} for some references. However, relatively few results provide regret bounds. The result based on golden section search presented in Section~\ref{s:nonlinear-stochastic} is due to~\citep{yu2011unimodal}. Similar results, using different sets of assumptions, have been recently obtained. \citep{kleinberg2004nearly} and \citep{auer2007improved} use discretization in the $1$-dimensional case. The result of \citep{cope2009regret} for the general $d$-dimensional case is based on the Kiefer-Wolfowitz procedure (a classical method of stochastic optimization). This result has been improved in \citep{agarwal2011stochastic}, where they use the zero-order optimization method of \citep{NY83}. Finally, \citep{KSU08} and \citep{BMSS11} investigate the problem when the arm space is a general metric space. This scenario has been recently extended to the contextual bandit setting by \citep{lu2010contextual}.
+%
+%Nonlinear bandits where payoff functions are drawn from Gaussian processes have been investigated in~\cite{SKKS10} and~\cite{GAOS10}.

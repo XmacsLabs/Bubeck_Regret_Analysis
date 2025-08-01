@@ -1,0 +1,243 @@
+We start by recalling the basic definitions for the stochastic bandit problem. Each arm $i \in \{1, \hdots, K\}$ corresponds to an unknown probability distribution $\nu_i$. At each time step $t =1, 2, \hdots,$ the forecaster selects some arm $I_t \in \{1, \hdots, K\}$ and receives a reward $X_{I_t,t}$ drawn from $\nu_{I_t}$ (independently from the past). Denote by $\mu_i$ the mean of arm $i$ and define
+\[
+    \mu^*=\max_{i=1,\hdots,K} \mu_i \qquad\text{and}\qquad i^* \in \argmax_{i=1,\hdots,K} \mu_i~.
+\]
+We focus here on the pseudo-regret, which is defined as
+\begin{equation} \label{eq:pseudoregretstocha}
+\oR_n = n \mu^* - \E \sum_{t=1}^n \mu_{I_t}~.
+\end{equation}
+We choose the pseudo-regret as our main quantity of interest because in a stochastic framework it is more natural to compete against the optimal action in expectation, rather than the optimal action on the sequence of realized rewards (as in the definition of the plain regret~\eqref{eq:regret}). Furthermore, because of the order of magnitude of typical random fluctuations, in general one cannot hope to prove a bound on the expected regret~\eqref{eq:exp-regret} better than $\Theta\bigl(\sqrt{n}\bigr)$. On the contrary, the pseudo-regret can be controlled so well that we are able to bound it by a \textsl{logarithmic} function of $n$.
+
+In the following we also use a different formula for the pseudo-regret. Let $T_{i}(s)=\sum_{t=1}^s \ds1_{I_t=i}$ denote the number of times the player selected arm $i$ on the first $s$ rounds. Let $\Delta_i = \mu^*-\mu_i$ be the suboptimality parameter of arm $i$. Then the pseudo-regret can be written as:
+\begin{align*}
+\oR_n =
+% n \mu^* - \E \sum_{t=1}^n \mu_{I_t}
+\left( \sum_{i=1}^K \E\,T_i(n) \right) \mu^* - \E \sum_{i=1}^K T_i(n) \mu_i = \sum_{i=1}^K \Delta_i\, \E\,T_i(n)~.
+\end{align*}
+% Finally, we denote by  the reward obtained by pulling arm $i$ for the $s^{th}$ time. 
+
+\section{Optimism in face of uncertainty}
+The difficulty of the stochastic multi-armed bandit problem lies in the {\em exploration-exploitation dilemma} that the forecaster is facing. Indeed, there is an intrinsic tradeoff between {\em exploiting} the current knowledge to focus on the arm that seems to yield the highest rewards, and {\em exploring} further the other arms to identify with better precision which arm is actually the best. As we shall see, the key to obtain a good strategy for this problem is, in a certain sense, to simultaneously perform exploration and exploitation.
+
+A simple heuristic principle for doing that is the so-called {\em optimism in face of uncertainty}. The idea is very general, and applies to many sequential decision making problems in uncertain environments. Assume that the forecaster has accumulated some data on the environment and must decide how to act next. First, a set of ``plausible'' environments which are ``consistent'' with the data (typically, through concentration inequalities) is constructed. Then, the most ``favorable'' environment is identified in this set. Based on that, the heuristic prescribes that the decision which is optimal in this most favorable and plausible environment should be made. As we see below, this principle gives simple and yet almost optimal algorithms for the stochastic multi-armed bandit problem. More complex algorithms for various extensions of the stochastic multi-armed bandit problem are also based on the same idea which, along with the exponential weighting scheme presented in Section~\ref{adversarial}, is an algorithmic cornerstone of regret analysis in bandits. 
+
+\section{Upper Confidence Bound (UCB) strategies} \label{sec:UCB}
+In this section we assume that the distribution of rewards $X$ satisfy the following moment conditions. There exists a convex function\footnote{
+One can easily generalize the discussion to functions $\psi$ defined only on an interval $[0,b]$.
+}
+$\psi$ on the reals such that, for all $\lambda \geq 0$,
+\begin{equation} \label{eq:psicond}
+\ln \E\,e^{\lambda \bigl(X-\E[X]\bigr)} \leq \psi(\lambda) \quad\text{and}\quad  \ln\,\E\,e^{\lambda \bigl(\E[X] - X\bigr)} \leq \psi(\lambda)~.
+\end{equation}
+For example, when $X \in [0,1]$ one can take $\psi(\lambda) = \tfrac{\lambda^2}{8}$. In this case~\eqref{eq:psicond} is known as Hoeffding's lemma.
+
+We attack the stochastic multi-armed bandit using the optimism in face of uncertainty principle. In order do so, we use assumption \eqref{eq:psicond} to construct an upper bound estimate on the mean of each arm at some fixed confidence level, and then choose the arm that looks best under this estimate. We need a standard notion from convex analysis: the Legendre-Fenchel transform of $\psi$, defined by
+\[
+    \psi^*(\epsilon) = \sup_{\lambda \in \R} \bigl(\lambda \epsilon - \psi(\lambda)\bigr)~.
+\]
+For instance, if $\psi(x) = e^x$ then $\psi^*(x) = x\ln x - x$ for $x > 0$. If $\psi(x) = \frac{1}{p}|x|^p$ then $\psi^*(x) = \frac{1}{q}|x|^q$ for any pair $1 < p,q < \infty$ such that $\frac{1}{p} + \frac{1}{q} = 1$ ---see also Section~\ref{sec:OMD}, where the same notion is used in a different bandit model. 
+
+Let $\wh{\mu}_{i,s}$ be the sample mean of rewards obtained by pulling arm $i$ for $s$ times. Note that since the rewards are i.i.d., we have that in distribution $\wh{\mu}_{i,s}$ is equal to $\frac{1}{s} \sum_{t=1}^s X_{i,t}$.
+%Let $\wh{\mu}_{i,s} = \frac{1}{s} \sum_{t=1}^s X_{i,t}$ be the sample mean of rewards obtained by pulling arm $i$ for $s$ times. Since %rewards are i.i.d., $\sum_{t=1}^s X_{i,t}$ has the same distribution as $\sum_{t \,:\, T_i(t) \le s} X_{I_t,t} \ds1_{I_t=i}$, and we use both %notations interchangeably.
+
+Using Markov's inequality, from~\eqref{eq:psicond} one obtains that
+\begin{equation} \label{eq:psiconcentration}
+\P(\mu_i - \wh{\mu}_{i,s} > \epsilon) \leq e^{- s\,\psi^*(\epsilon)}~.
+\end{equation}
+In other words, with probability at least $1- \delta$,
+$$\wh{\mu}_{i,s} + \left(\psi^*\right)^{-1}\left( \frac{1}{s}\ln\frac{1}{\delta}\right) > \mu_i~.$$
+We thus consider the following strategy, called $(\alpha, \psi)$-UCB, where $\alpha >0$ is an input parameter: At time $t$, select
+%\[
+%\text{At time $t$, select} \qquad
+%I_t \in \argmax_{i=1,\hdots,K} \left[ \wh{\mu}_{i,T_i(t-1)} + \left(\psi^*\right)^{-1}\left( \frac{\alpha %\ln t}{T_i(t-1)}\right) \right]~.
+%\]
+\[
+I_t \in \argmax_{i=1,\hdots,K} \left[ \wh{\mu}_{i,T_i(t-1)} + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{T_i(t-1)}\right) \right]~.
+\]
+We can prove the following simple bound.
+%
+\begin{theorem}[Pseudo-regret of $(\alpha,\psi)$-UCB] \label{th:ucb}
+Assume that the reward distributions satisfy \eqref{eq:psicond}. Then $(\alpha, \psi)$-UCB with $\alpha > 2$ satisfies
+$$\oR_n \leq \sum_{i \,:\, \Delta_i > 0} \left( \frac{\alpha \Delta_i}{\psi^*(\Delta_i / 2)} \ln n + \frac{\alpha}{\alpha - 2}  \right)~.$$
+\end{theorem}
+In case of $[0,1]$-valued random variables, taking $\psi(\lambda) = \tfrac{\lambda^2}{8}$ in~\eqref{eq:psicond} ---the Hoeffding's Lemma--- gives $\psi^*(\epsilon) = 2 \epsilon^2$, which in turns gives the following pseudo-regret bound
+\begin{equation} \label{eq:regretUCBbounded}
+\oR_n \leq \sum_{i : \Delta_i > 0} \left( \frac{2 \alpha}{\Delta_i} \ln n + \frac{\alpha}{\alpha - 2}  \right)~.
+\end{equation}
+In this important special case of bounded random variables we refer to $(\alpha,\psi)$-UCB simply as $\alpha$-UCB.
+%
+\begin{proof}
+First note that if $I_t = i$, then at least one of the three following equations must be true:
+\begin{align}
+\label{eq:UCB1}
+& \wh{\mu}_{i^*,T_{i^*}(t-1)} + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{T_{i^*}(t-1)}\right) \leq \mu^*
+\\
+\label{eq:UCB2}
+& \widehat{\mu}_{i,T_i(t-1)} > \mu_i + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{T_{i}(t-1)}\right)
+\\
+\label{eq:UCB3}
+& T_i(t-1) < \frac{\alpha \ln n}{\psi^*(\Delta_i/2)}~.
+\end{align}
+Indeed, assume that the three equations are all false, then we have:
+\begin{align*}
+\wh{\mu}_{i^*,T_{i^*}(t-1)} + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{T_{i^*}(t-1)}\right) & > \mu^* \\
+& = \mu_i+\Delta_i  \\
+& \geq \mu_i + 2 \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{T_{i}(t-1)}\right) \\
+& \geq \widehat{\mu}_{i,T_i(t-1)} + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{T_{i}(t-1)}\right)
+\end{align*}
+which implies, in particular, that $I_t \neq i$. In other words, letting
+\[
+    u = \left\lceil \frac{\alpha \ln n}{\psi^*(\Delta_i/2)} \right\rceil
+\]
+we just proved
+\begin{align*}
+\E\,T_i(n) = \E \sum_{t=1}^n \ds1_{I_t=i} & \leq u + \E \sum_{t=u+1}^n \ds1_{I_t = i \; \mbox{and \eqref{eq:UCB3} is false}} \\
+& \leq u + \E \sum_{t=u+1}^n \ds1_{\mbox{\eqref{eq:UCB1} or \eqref{eq:UCB2} is true}} \\
+& = u + \sum_{t=u+1}^n \P\bigl(\mbox{\eqref{eq:UCB1} is true}\bigr) + \P\bigl(\mbox{\eqref{eq:UCB2} is true}\bigr).
+\end{align*}
+Thus it suffices to bound the probability of the events \eqref{eq:UCB1} and \eqref{eq:UCB2}. Using an union bound and \eqref{eq:psiconcentration} one directly obtains:
+\begin{align*}
+\P\bigl(\mbox{\eqref{eq:UCB1} is true}\bigr) & \leq \P\left(\exists s \in \{1,\hdots,t\} : \wh{\mu}_{i^*,s} + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{s}\right)  \leq \mu^* \right) \\
+& \leq \sum_{s=1}^t \P\left(\wh{\mu}_{i^*,s} + \left(\psi^*\right)^{-1}\left( \frac{\alpha \ln t}{s}\right)  \leq \mu^* \right) \\
+& \leq \sum_{s=1}^t \frac{1}{t^{\alpha}}
+= \frac{1}{t^{\alpha - 1}}~. 
+\end{align*}
+The same upper bound holds for \eqref{eq:UCB2}. Straightforward computations conclude the proof.
+\end{proof}
+
+\section{Lower bound}
+\label{s:stoch-lower}
+We now show that the result of the previous section is essentially unimprovable when the reward distributions are Bernoulli. For $p, q \in [0,1]$ we denote by $\kl(p,q)$ the Kullback-Leibler divergence between a Bernoulli of parameter $p$ and a Bernoulli of parameter $q$, defined as
+$$\kl(p,q) =p \ln\frac{p}{q} + (1-p) \ln\frac{1-p}{1-q}~.$$
+%
+\begin{theorem}[Distribution-dependent lower bound] \label{th:LR85}
+Consider a strategy that satisfies $\E\,T_i(n) = o(n^a)$ for any set of Bernoulli reward distributions, any arm $i$ with $\Delta_i > 0$, and any $a>0$. 
+Then, for any set of Bernoulli reward distributions the following holds
+$$\liminf_{n \to +\infty} \frac{\oR_n}{\ln n} \geq \sum_{i \,:\, \Delta_i > 0} \frac{\Delta_i}{\kl(\mu_i,\mu^*)}~.$$
+\end{theorem}
+In order to compare this result with \eqref{eq:regretUCBbounded} we use the following standard inequalities (the left hand side follows from Pinsker's inequality, and the right hand side simply uses $\ln x \leq x -1$),
+\begin{equation} \label{eq:klbernoullis}
+2 (p-q)^2 \leq \kl(p,q) \leq \frac{(p-q)^2}{q(1-q)}~.
+\end{equation}
+%
+\begin{proof}
+The proof is organized in three steps. For simplicity, we only consider the case of two arms.
+
+\subsection*{First step: Notations.}
+Without loss of generality assume that arm $1$ is optimal and arm $2$ is suboptimal, that is $\mu_2 < \mu_1 < 1$. Let $\epsilon > 0$. Since $x \mapsto \kl(\mu_2,x)$ is continuous one can find $\mu_2' \in (\mu_1,1)$ such that
+\begin{equation} \label{eq:defmu2prime}
+\kl(\mu_2,\mu_2') \leq (1+\epsilon) \kl(\mu_2,\mu_1)~.
+\end{equation}
+We use the notation $\E', \P'$ when we integrate with respect to the modified bandit where the parameter of arm $2$ is replaced by $\mu_2'$. We want to compare the behavior of the forecaster on the initial and modified bandits. In particular, we prove that with a big enough probability the forecaster can not distinguish between the two problems. Then, using the fact that we have a good forecaster by hypothesis, we know that the algorithm does not make too many mistakes on the modified bandit where arm $2$ is optimal. In other words, we have a lower bound on the number of times the optimal arm is played. This reasoning implies a lower bound on the number of times arm $2$ is played in the initial problem.
+
+We now slightly change the notation for rewards and denote by $X_{2,1}, \hdots, X_{2,n}$ the sequence of random variables obtained when pulling arm $2$ for $n$ times (that is, $X_{2,s}$ is the reward obtained from the $s$-th pull).
+%Recall that $X_{2,1}, \hdots, X_{2,n}$ is the sequence of random variables obtained while pulling arm $2$. 
+For $s \in \{1, \hdots, n\}$, let
+$$\widehat{\kl}_s=\sum_{t=1}^{s} \ln \frac{\mu_2 X_{2,t} + (1-\mu_2) (1-X_{2,t})}{\mu_2' X_{2,t} + (1-\mu_2') (1-X_{2,t})}~.$$
+Note that, with respect to the initial bandit, $\widehat{\kl}_{T_2(n)}$ is the (non re-normalized) empirical estimate of $\kl(\mu_2, \mu_2')$ at time $n$, since in that case the process $(X_{2,s})$ is i.i.d.\ from a Bernoulli of parameter $\mu_2$. Another important property is the following: for any event $A$ in the $\sigma$-algebra generated by $X_{2,1},\dots,X_{2,n}$ the following change-of-measure identity holds:
+\begin{equation} \label{eq:KLchapeauprop}
+\P'(A) = \E \left[\ds1_{A} \exp\left(- \widehat{\kl}_{T_2(n)} \right)\right]~.
+\end{equation}
+%
+In order to link the behavior of the forecaster on the initial and modified bandits we introduce the event
+\begin{equation} \label{eq:cndef}
+C_n = \left\{ T_2(n) < \frac{1-\epsilon}{\kl(\mu_2,\mu_2')} \ln(n) \;\; \text{and} \;\; \widehat{\kl}_{T_2(n)} \leq \left(1-\frac{\epsilon}{2}\right) \ln(n) \right\}~.
+\end{equation}
+
+\subsection*{Second step: $\P(C_n) = o(1)$.}
+By \eqref{eq:KLchapeauprop} and \eqref{eq:cndef} one has
+$$\P'(C_n) = \E \; \ds1_{C_n} \exp\left(- \widehat{\kl}_{T_2(n)} \right) \geq e^{- (1-\epsilon/2) \ln(n)} \P(C_n)~.$$
+Introduce the shorthand
+\[
+    f_n = \frac{1-\epsilon}{\kl(\mu_2,\mu_2')} \ln(n)~.
+\]
+Using again~\eqref{eq:cndef} and Markov's inequality, the above implies
+\begin{align*}
+\P(C_n) \leq n^{(1-\epsilon/2)} \P'(C_n)
+&\leq n^{(1-\epsilon/2)} \P'(T_2(n) < f_n)
+\\ &\leq n^{(1-\epsilon/2)} \frac{\E'[n - T_2(n)]}{n - f_n}~.
+\end{align*}
+Now note that in the modified bandit arm $2$ is the unique optimal arm. Hence the assumption that for any bandit, any suboptimal arm $i$, and any $a>0$, the strategy satisfies $\E\,T_i(n) = o(n^a)$, implies that
+$$\P(C_n) \leq n^{(1-\epsilon/2)} \frac{\E'[n - T_2(n)]}{n - f_n} = o(1)~.$$ 
+
+\subsection*{Third step: $\P\left(T_2(n) < f_n \right) = o(1)$.}
+%
+Observe that
+\begin{align}
+    \P(C_n)
+& \ge
+    \P\left(T_2(n) < f_n \;\; \text{and} \;\; \max_{s \le f_n} \widehat{\kl}_s \leq \left(1-\frac{\epsilon}{2}\right) \ln(n) \right)
+\notag
+\\&=
+    \P\biggl(T_2(n) < f_n
+\notag
+\\&
+    \qquad \text{and} \;\; \frac{\kl(\mu_2,\mu_2')}{(1-\epsilon) \ln(n)} \times \max_{s \le f_n} \widehat{\kl}_s \leq \frac{1-\epsilon/2}{1-\epsilon} \kl(\mu_2, \mu_2') \biggr)~.
+\label{eq:endLR}
+\end{align}
+%
+Now we use the maximal version of the strong law of large numbers: for any sequence $\bigl(X_t\bigr)$ of independent real random variables with positive mean $\mu > 0$,
+\[
+    \lim_{n\to\infty}\frac{1}{n}\sum_{t=1}^n X_t = \mu \quad a.s. \quad\text{implies}\quad
+\lim_{n\to\infty}\frac{1}{n}\max_{s=1,\dots,n}\sum_{t=1}^s X_t = \mu \quad a.s.
+\]
+See, e.g., \cite[Lemma 10.5]{Bub10}.
+
+Since $\kl(\mu_2,\mu_2')>0$ and $\frac{1-\epsilon/2}{1-\epsilon} > 1$, we deduce that
+$$\lim_{n \to \infty} \P \left(\frac{\kl(\mu_2,\mu_2')}{(1-\epsilon) \ln(n)} \times \max_{s \le f_n} \widehat{\kl}_s \leq \frac{1-\epsilon/2}{1-\epsilon} \kl(\mu_2, \mu_2') \right) = 1~.$$
+Thus, by the result of the second step and~\eqref{eq:endLR}, we get
+$$\P\left(T_2(n) < f_n\right) = o(1)~.$$
+%
+Now recalling that $f_n = \frac{1-\epsilon}{\kl(\mu_2,\mu_2')} \ln(n)$, and using~\eqref{eq:defmu2prime}, we obtain
+$$\E\,T_2(n) \geq (1+o(1)) \frac{1-\epsilon}{1+\epsilon} \frac{\ln(n)}{\kl(\mu_2,\mu_1)}$$
+which concludes the proof.
+\end{proof}
+
+\section{Refinements and bibliographic remarks}
+The UCB strategy presented in Section \ref{sec:UCB} was introduced by \cite{ACF02} for bounded random variables. Theorem~\ref{th:LR85} is extracted from \cite{LR85}. Note that in this last paper the result is more general than ours, which is restricted to Bernoulli distributions. Although \cite{BK97} prove an even more general lower bound, Theorem \ref{th:LR85} and the UCB regret bound provide a reasonably complete solution to the problem. We now discuss some of the possible refinements. In the following, we restrict our attention to the case of bounded rewards (except in Section \ref{sec:heavytail}).
+
+\subsection{Improved constants}
+The regret bound proof for UCB can be improved in two ways. First, the union bound over the different time steps can be replaced by a ``peeling'' argument. This allows to show a logarithmic regret for any $\alpha > 1$, whereas the proof of Section~\ref{sec:UCB} requires $\alpha > 2$ ---see \cite[Section 2.2]{Bub10} for more details. A second improvement, proposed by \cite{GC11}, is to use a more subtle set of conditions than \eqref{eq:UCB1}--\eqref{eq:UCB3}. In fact, the authors take both improvements into account, and show that $\alpha$-UCB has a regret of order $\frac{\alpha}{2} \ln n$ for any $\alpha > 1$. In the limit when $\alpha$ tends to $1$, this constant is unimprovable in light of Theorem~\ref{th:LR85} and \eqref{eq:klbernoullis}.
+
+\subsection{Second order bounds}
+Although $\alpha$-UCB is essentially optimal, the gap between \eqref{eq:regretUCBbounded} and Theorem \ref{th:LR85} can be important if $\kl(\mu_{i^*}, \mu_i)$ is significantly larger than $\Delta_i^2$. Several improvements have been proposed towards closing this gap. In particular, the UCB-V algorithm of \cite{AMS09} takes into account the variance of the distributions and replaces Hoeffding's inequality by Bernstein's inequality in the derivation of UCB. A previous algorithm with similar ideas was developed by \cite{ACF02} without theoretical guarantees. A second type of approach replaces $L_2$-neighborhoods in $\alpha$-UCB by $\kl$-neighborhoods. This line of work started with \cite{HT10} where only asymptotic guarantees were provided. Later, \cite{GC11} and~\cite{MMS11} (see also \cite{CGMMS12}) independently proposed a similar algorithm, called KL-UCB, which is shown to attain the optimal rate in finite-time. More precisely, \cite{GC11} showed that KL-UCB attains a regret smaller than
+\[
+    \sum_{i \,:\, \Delta_i > 0} \frac{\Delta_i}{\kl(\mu_i,\mu^*)} \alpha \ln n + \mathcal{O}(1)
+\]
+where $\alpha >1$ is a parameter of the algorithm. Thus, KL-UCB is optimal for Bernoulli distributions, and strictly dominates $\alpha$-UCB for any bounded reward distributions.
+
+\subsection{Distribution-free bounds}
+In the limit when $\Delta_i$ tends to $0$, the upper bound in \eqref{eq:regretUCBbounded} becomes vacuous. On the other hand, it is clear that the regret incurred from pulling arm $i$ cannot be larger than $n\,\Delta_i$. Using this idea, it is easy to show that the regret of $\alpha$-UCB is always smaller than $\sqrt{\alpha n K \ln n}$ (up to a numerical constant). However, as we shall see in the next chapter, one can show a minimax lower bound on the regret of order $\sqrt{n K}$. \cite{AB09} proposed a modification of $\alpha$-UCB that gets rid of the extraneous logarithmic term in the upper bound. More precisely, let $\Delta = \min_{i \neq i^*} \Delta_i$, \cite{AB10} show that MOSS (Minimax Optimal Strategy in the Stochastic case) attains a regret smaller than 
+$$\min \left\{ \sqrt{n K},\, \frac{K}{\Delta} \ln\frac{n \Delta^2}{K} \right\}$$
+up to a numerical constant. The weakness of this result is that the second term in the above equation only depends on the smallest gap $\Delta$. In \cite{AO10} (see also \cite{PR11}) the authors designed a strategy, called improved UCB, with a regret of order
+$$\sum_{i \,:\, \Delta_i > 0} \frac{1}{\Delta_i} \ln \bigl(n \Delta_i^2\bigr)~.$$
+This latter regret bound can be better than the one for MOSS in some regimes, but it does not attain the minimax optimal rate of order $\sqrt{n K}$. It is an open problem to obtain a strategy with a regret always better than those of MOSS and improved UCB. A plausible conjecture is that a regret of order
+\[
+    \sum_{i \,:\, \Delta_i > 0} \frac{1}{\Delta_i} \ln \frac{n}{H}
+\qquad\text{with}\qquad
+    H = \sum_{i \,:\, \Delta_i > 0} \frac{1}{\Delta_i^2} 
+\]
+is attainable. Note that the quantity $H$ appears in other variants of the stochastic multi-armed bandit problem, see \cite{ABM10}.
+
+\subsection{High probability bounds}
+While bounds on the pseudo-regret $\oR_n$ are important, one typically wants to control the quantity $\hat{R}_n = n \mu^* - \sum_{t=1}^n \mu_{I_t}$ with high probability. Showing that $\hat{R}_n$ is close to its expectation $\oR_n$ is a challenging task, since naively one might expect the fluctuations of $\hat{R}_n$ to be of order $\sqrt{n}$, which would dominate the expectation $\oR_n$ which is only of order $\ln n$. The concentration properties of $\hat{R}_n$ for UCB are analyzed in detail in \cite{AMS09}, where it is shown that $\hat{R}_n$ concentrates around its expectation, but that there is also a polynomial (in $n$) probability that $\hat{R}_n$ is of order $n$. In fact the polynomial concentration of $\hat{R}_n$ around $\oR_n$ can be directly derived from our proof of Theorem \ref{th:ucb}. In \cite{SA11} it is proved that for anytime strategies (i.e., strategies that do not use the time horizon $n$) it is basically impossible to improve this polynomial concentration to a classical exponential concentration.
+% UCB has basically optimal concentration properties
+In particular this shows that, as far as high probability bounds are concerned, anytime strategies are surprisingly weaker than strategies using the time horizon information (for which exponential concentration of $\hat{R}_n$ around $\ln n$ are possible, see \cite{AMS09}). 
+
+%Ultimately, one may be interested in the behaviour of the true regret $R_n$ ---see~\eqref{eq:regret} in %Chapter~\ref{intro}.
+%, which provides the most accurate information on the performance of the algorithm. 
+%For that quantity one cannot go around the fluctuations of order $\sqrt{n}$, see \cite{AB10} for more %details. \textbf{NCB: I suggest moving this last para to the beginning of the chapter and expand it in %order to motivate the study of pseudo-regret as opposed to expected regret.}
+
+\subsection{$\epsilon$-greedy}
+A simple and popular heuristic for bandit problems is the $\ve$-greedy strategy ---see, e.g., \cite{SB98}. The idea is very simple. First, pick a parameter $0 < \ve < 1$. Then, at each step greedily play the arm with highest empirical mean reward with probability $1-\ve$, and play a random arm with probability $\ve$. \cite{ACF02} proved that, if $\ve$ is allowed to be a certain function $\ve_t$ of the current time step $t$, namely $\ve_t = K/(d^2 t)$, then the regret grows logarithmically like $(K \ln n)/d^2$, provided $0 < d < \min_{i \neq i^*} \Delta_i$. While this bound has a suboptimal dependence on $d$, \cite{ACF02} show that this algorithm performs well in practice, but the performance degrades quickly if $d$ is not chosen as a tight lower bound of $\min_{i \neq i^*} \Delta_i$.
+
+%The relation between these three quantities is intricate. A complete picture can be found in the papers \cite{AMS09,AB10,SA11}. In %particular, the last paper shows that, 
+\subsection{Thompson sampling}
+In the very first paper on the multi-armed bandit problem, \cite{Tho33}, a simple strategy was proposed for the case of Bernoulli distributions. The so-called Thompson sampling algorithm proceeds as follows. Assume a uniform prior on the parameters $\mu_i \in [0,1]$, let $\pi_{i,t}$ be the posterior distribution for $\mu_i$ at the $t^{th}$ round, and let $\theta_{i,t} \sim \pi_{i,t}$ (independently from the past given $\pi_{i,t}$). The strategy is then given by $I_t \in \argmax_{i =1,\hdots, K} \theta_{i,t}$. Recently there has been a surge of interest for this simple policy, mainly because of its flexibility to incorporate prior knowledge on the arms, see for example \cite{CLi11} and the references therein. While the theoretical behavior of Thompson sampling has remained elusive for a long time, we have now a fairly good understanding of its theoretical properties: in \cite{AG12} the first logarithmic regret bound was proved, and in \cite{KKM12} it was showed that in fact Thompson sampling attains essentially the same regret than in \eqref{eq:regretUCBbounded}. Interestingly note that while Thompson sampling comes from a Bayesian reasoning, it is analyzed with a frequentist perspective. For more on the interplay between Bayesian strategy and frequentist regret analysis we refer the reader to \cite{KCG12}.
+
+\subsection{Heavy-tailed distributions} \label{sec:heavytail}
+We showed in Section \ref{sec:UCB} how to obtain a UCB-type strategy through a bound on the moment generating function. Moreover one can see that the resulting bound in Theorem \ref{th:ucb} deteriorates as the tail of the distributions become heavier. In particular, we did not provide any result for the case of distributions for which the moment generating function is not finite. Surprisingly, it was shown in \cite{BCL12} that in fact there exists strategy with essentially the same regret than in \eqref{eq:regretUCBbounded}, as soon as the {\em variance} of the distributions are finite. More precisely, using more refined robust estimators of the mean than the basic empirical mean, one can construct a UCB-type strategy such that for distributions with moment of order $1+\epsilon$ bounded by $1$ it satisfies
+\[
+R_n \leq \sum_{i \,:\, \Delta_i > 0} \left(8 \left(\frac{4}{\Delta_i}\right)^{\frac{1}{\epsilon}} \ln n + 5\Delta_i\right)~.
+\]
+We refer the interested reader to \cite{BCL12} for more details on these 'robust' versions of UCB.

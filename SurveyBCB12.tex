@@ -1,0 +1,105 @@
+\documentclass[11pt]{hackednow}
+
+\usepackage{amsmath}
+\usepackage{amssymb,amsbsy}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{dsfont}
+\usepackage{natbib}
+\usepackage{pdfsync}
+\usepackage{hyperref}
+
+\input{Commands}
+\input{ncbCommands}
+
+\begin{document}
+
+\isbn{xxxxxxxxxxx}
+
+\DOI{xxxxxx}
+
+%\lccn{0000000000000}
+
+\abstract{
+Multi-armed bandit problems are the most basic examples of sequential decision problems with an exploration-exploitation trade-off. This is the balance between staying with the option that gave highest payoffs in the past and exploring new options that might give higher payoffs in the future. Although the study of bandit problems dates back to the Thirties, exploration-exploitation trade-offs arise in several modern applications, such as ad placement, website optimization, and packet routing. Mathematically, a multi-armed bandit is defined by the payoff process associated with each option. In this survey, we focus on two extreme cases in which the analysis of regret is particularly simple and elegant: i.i.d.\ payoffs and adversarial payoffs. Besides the basic setting of finitely many actions, we also analyze some of the most important variants and extensions, such as the contextual bandit model.
+}
+
+
+%\articletitle{Modern Banditology}
+\articletitle{Regret Analysis of Stochastic and Nonstochastic Multi-armed Bandit Problems}
+
+\authorname1{S\'ebastien Bubeck}
+\authorname2{Nicol{\`o} Cesa-Bianchi}
+%\authorname3{G\'abor Lugosi}
+
+\author1address2ndline{Department of Operations Research and Financial Engineering, Princeton University, Princeton 08544, USA, sbubeck@princeton.edu}
+\author2address2ndline{Dipartimento di Informatica, Universit{\`a} degli Studi di Milano, Milano 20135, Italy, nicolo.cesa-bianchi@unimi.it}
+%\author3address2ndline{ICREA and Department of Economics, Universitat Pompeu Fabra, Barcelona 08005, Spain, lugosi@upf.es}
+
+\journal{sample}
+\volume{xx}
+\issue{xx}
+\copyrightowner{xxxxxxxxx}
+\pubyear{xxxx}
+
+
+\maketitle
+
+
+\cleardoublepage \pagenumbering{roman}
+
+\tableofcontents
+
+\clearpage
+
+\setcounter{page}{0}
+\pagenumbering{arabic}
+
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{definition}{Definition}[chapter]
+
+
+\chapter{Introduction}
+\label{intro}
+\input{introduction}
+
+\chapter{Stochastic bandits: fundamental results}
+\label{stochastic}
+\input{stochastic}
+
+\chapter{Adversarial bandits: fundamental results}
+\label{adversarial}
+\input{adversarial}
+
+\chapter{Contextual bandits}
+\label{contextual}
+\input{contextual}
+
+\chapter{Linear bandits}
+\label{linear}
+\input{linear}
+
+\chapter{Nonlinear bandits}
+\label{nonlinear}
+\input{nonlinear}
+
+\chapter{Variants}
+\label{variants}
+\input{variants}
+
+%\appendix
+%\chapter{Appendix}
+%\input{appendix}
+
+\begin{acknowledgements}
+We would like to thank Mike Jordan for proposing to write this survey and James Finlay for keeping us on track. The table of contents was laid down with the help of G\'abor Lugosi.
+We would also like to express our warm thanks to the reviewers, whose insightful comments have led to many substantial improvements. And a special thank goes to the ``non-anonymous'' referee Alexandrs Slivkins, whose review stands out for breadth and depth. Thank you Alexandrs, you have done a really exceptional job!
+
+Nicol\`o Cesa-Bianchi gratefully acknowledges partial support by the PASCAL2 Network of Excellence under EC grant no.\ 216886.
+\end{acknowledgements}
+
+\bibliographystyle{plainnat}
+%\bibliography{biblio}
+\bibliography{newbib}
+
+\end{document}

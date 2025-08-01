@@ -1,0 +1,536 @@
+We now consider the important generalization of adversarial bandits where the set of arms $\{1,\hdots,K\}$ is replaced by a compact set $\cK \subset \R^d$. In this case, the loss at each step is some function defined on $\cK$, and the task is to pick an arm as close as possible to the minimum of the loss function at hand. In order to allow sublinear regret bounds, even in the presence of infinitely many arms, we must assume some structure for the loss function. In particular, in this chapter we assume that the loss at each time step is a linear function of arms. Linearity is a standard assumption (think, for instance, of linear regression) and naturally occurs in many bandit applications. The source routing problem mentioned in the introduction is a good example, since the cost of choosing a routing path is linear in the cost of the edges that make up the path. This defines the so-called online linear optimization setting: at each time step $t=1,2, \hdots$ the forecaster chooses $x_t \in \cK$ while, simultaneously, the adversary chooses $\ell_t$ from some fixed and known subset $\cL$ of $\R^d$. The loss incurred by the forecaster is the inner product $x_t^{\top}\ell_t$. In this chapter we focus on the analysis of the pseudo-regret
+$$\oR_n = \E \sum_{t=1}^n x_t^{\top} \ell_t - \min_{x \in \cK} \E \sum_{t=1}^n x^{\top} \ell_t$$
+where the expectation is with respect to the forecaster's internal randomization.
+The adversarial bandit setting of Chapter~\ref{adversarial} is obtained by choosing $\cK=\{e_1, \hdots, e_d\}$, where $e_1, \hdots, e_d$ is the canonical basis of $\R^d$, and $\cL=[0,1]^d$. Similarly to Chapter \ref{adversarial}, we focus on the bandit feedback where the forecaster only observes the incurred loss $x_t^{\top} \ell_t$ at the end round $t$. However, we also discuss the full information setting, where the complete loss vector $\ell_t$ is revealed at the end of each round $t$, as well as other feedback models.
+
+It is important to note that, without any loss of generality (as far as regret bounds are concerned), one can always assume that $\cK$ has size $\scO(n^d)$. Indeed, since $\cK$ is a compact set and the loss is linear (and therefore Lipschitz), one can cover $\cK$ with $\scO(n^d)$ points such that one incurs a vanishing extra cumulative regret by playing on the discretization rather than on the original set. Of course, the downside of this approach is that a strategy resulting from such a cover is often not computationally efficient. On the other hand, this assumption allows us to apply ideas from Chapter~\ref{adversarial} to this more general setting. We analyze the pseudo-regret for finite classes in Section \ref{sec:Exp2}. Without loss of generality, it is also possible to assume that $\cK$ is a convex set. Indeed, the pseudo-regret is the same if one plays $x_t$, or if one plays a point at random in $\cK$ such that the expectation of the played point is $x_t$. This remark is critical, and allows us to develop a powerful technology known as the Mirror Descent algorithm. We describe this approach in Section \ref{sec:OMD}, and explore it further in subsequent sections.
+
+\section{Exp2 (Expanded Exp) with John's exploration} \label{sec:Exp2}
+In this section we work under the {\em bounded scalar loss} assumption. That is, we assume that $\cK$ and $\cL$ are such that $|x^{\top} \ell| \leq 1$ for any $(x, \ell) \in \cK \times \cL$. Moreover, we restrict our attention to finite sets $\cK$, with $|\cK| = N$. Without loss of generality we assume that $\cK$ spans $\R^d$. If it is not the case, then one can rewrite the elements of $\cK$ in some lower dimensional vector space, and work there. Note that a trivial application of Exp3 to the set $\cK$ of arms gives a bound that scales as $\sqrt{n N\ln N}$. If $\cK$ is a discretized set (in the sense described earlier), then $N$ is exponential in $d$. We show here that, by appropriately modifying Exp3, one can obtain a polynomial regret of order $\sqrt{n d \ln N}$.
+
+To describe the strategy, we first need a useful result from convex geometry: John's theorem. This result concerns the ellipsoid $\cE$ of minimal volume enclosing a given convex set $\cK$ (which we call the John's ellipsoid of $\cK$). Basically, the theorem states that $\cE$ has many contact points with $\cK$, and these contact points are ``nicely'' distributed, in the sense that they almost form an orthonormal basis ---see \cite{Bal97} for a proof.
+\begin{theorem}[John's theorem] \label{th:john}
+Let $\cK \subset \R^d$ be a convex set. If the ellipsoid $\cE$ of minimal volume enclosing $\cK$ is the unit ball in some norm derived from a scalar product $\langle \cdot, \cdot \rangle$, then there exist $M \leq \tfrac{1}{2}d(d+1) + 1$ contact points $u_1, \hdots, u_M$ between $\cE$ and $\cK$, and a probability distribution $(\mu_1,\dots,\mu_M)$ over these contact points, such that
+$$x = d \sum_{i=1}^M \mu_i \langle x, u_i \rangle u_i \qquad \forall x \in \R^d .$$
+\end{theorem}
+In fact John's theorem is a {\em if and only if}, but here we only need the direction stated in the theorem. 
+%Note also that the above theorem immediately gives a formula for the norm of a point:
+%\begin{equation} \label{eq:john}
+%\langle x, x \rangle = d \sum_{i=1}^M \mu_i \langle x, u_i \rangle^2 .
+%\end{equation}
+We are now in position to describe the strategy. Let $\conv(S)$ be the convex hull of a set $S\in\R^d$. First, we perform a preprocessing step in which the set $\cK$ is rewritten so that John's ellipsoid of $\conv(\cK)$ is the unit ball for some inner product $\langle \cdot, \cdot \rangle$. The loss of playing $x \in \cK$ against $\ell \in \cL$ is then given by $\langle x, \ell \rangle$. See \cite{BCK12} for the details of this transformation. Let $u_1, \hdots, u_M \in \cK$ and $(\mu_1,\dots,\mu_M)$ satisfy Theorem \ref{th:john} for the convex set $\conv(\cK)$.
+
+Recall from Chapter \ref{adversarial} that the key idea to play against an adversary is to select $x_t$ at random from some probability distribution $p_t$ over $\cK$. We first describe how to build an unbiased estimate of $\ell_t$, given such a point $x_t$ played at random from $p_t$ (such that $p_t(x) > 0$  for any $x \in \cK$). Recall that the outer product $x \otimes x$ is defined as the linear mapping from $\R^d$ to $\R^d$ such that $x \otimes x\, (y) = \langle x, y \rangle\, x$. Note that one can also view $x \otimes x$ as a $d \times d$ matrix, so that the evaluation of $x \otimes x$ is equivalent to a multiplication by the corresponding matrix. Now let
+$$P_t = \sum_{x \in \cK} {p}_t(x)\, x \otimes x~.$$
+Note that this matrix is invertible, since $\cK$ is full rank and $p_t(x) > 0$ for all $x \in \cK$. The estimate for $\ell_t$ is given by
+$
+\tilde{\ell}_t = P_t^{-1} \left(x_t \otimes x_t\right) \ell_t
+$.
+Note that this is a valid estimate since $\left(x_t \otimes x_t\right) \ell_t = \langle x_t, \ell_t \rangle x_t$ and $P_t^{-1}$ are observed quantities. Also, it is clearly an unbiased estimate.
+ 
+Now the Exp2 algorithm with John's exploration corresponds to playing according to the following probability distribution
+\begin{equation}
+\label{eq:exp2def}
+p_t(x) = (1- \gamma) \frac{\exp\left(- \eta \sum_{s=1}^{t-1} \langle x, \tilde{\ell}_t \rangle  \right)}{\sum_{y \in \cK} \exp\left(- \eta \sum_{s=1}^{t-1} \langle y, \tilde{\ell}_t \rangle  \right)} + \gamma \sum_{i=1}^M \mu_i\,\ds1_{x = u_i}
+\end{equation}
+where $\eta,\gamma > 0$ are input parameters. Note that this corresponds to a variant of Exp3 using $\langle x, \tilde{\ell}_t \rangle$ as loss estimate for $x \in \cK$, and an exploration distribution supported by the contact points.
+%
+\begin{theorem}[Pseudo-regret of Exp2 with John's exploration] \label{th:exp2john}
+For any $\eta,\gamma > 0$ such that ${\eta d} \le {\gamma}$, Exp2 with John's exploration satisfies
+$$\oR_n \leq 2 \gamma n + \frac{\ln N}{\eta} + \eta n d~.$$
+In particular, with $\eta = \sqrt{\frac{\ln N}{3 n d}}$ and $\gamma = \eta d$,
+$$\oR_n \leq 2 \sqrt{3 n d \ln N}~.$$
+\end{theorem}
+%
+\begin{proof}
+Since $\cK$ is finite, we can easily adapt the analysis of Exp3 in Theorem~\ref{th:Exp3} to take into account the exploration term.
+% or apply Theorem \ref{th:OSMD2} where $\cK$ is the simplex in $\R^N$) one can easily show that, if
+This gives
+$$\oR_n \leq 2 \gamma n + \frac{\ln N}{\eta} + \eta\,\E \sum_{t=1}^n \sum_{x \in \cK} {p}_t(x) \langle x, \tilde{\ell}_t \rangle^2
+$$
+whenever
+$\eta\,\langle x, \tilde{\ell}_t \rangle \leq 1$ for all $x \in \cK$. We now bound the last term in the right-hand side of the above inequality. Using the definition of the estimated loss $\tilde{\ell}_t = P_t^{-1} \left(x_t \otimes x_t\right) \ell_t$, we can write
+\begin{align*}
+    \sum_{x \in \cK} {p}_t(x) \langle x, \tilde{\ell}_t \rangle^2
+&=
+    \sum_{x \in \cK} {p}_t(x) \langle \tilde{\ell}_t, (x \otimes x)\,\tilde{\ell}_t \rangle
+\\& =
+    \langle \tilde{\ell}_t, P_t\,\tilde{\ell}_t \rangle 
+\\&=
+    \langle x_t, \ell_t \rangle^2 \langle P_t^{-1} x_t, P_t\, P_t^{-1} x_t\rangle
+\\ &\le
+    \langle P_t^{-1} x_t, x_t \rangle~.
+\end{align*}
+Now we use a spectral decomposition of $P_t$ in an orthonormal basis for $\langle \cdot, \cdot \rangle$ and write
+$P_t = \sum_{i=1}^d \lambda_i v_i \otimes v_i $. In particular, we have $P_t^{-1} = \sum_{i=1}^d \frac{1}{\lambda_i} v_i \otimes v_i$ and thus
+\begin{align*}
+\E \langle P_t^{-1} x_t, x_t \rangle & = \sum_{i=1}^d \frac{1}{\lambda_i} \E \langle (v_i \otimes v_i)\, x_t, x_t \rangle \\
+& = \sum_{i=1}^d \frac{1}{\lambda_i} \E \langle (x_t \otimes x_t)\, v_i, v_i \rangle \\
+& = \sum_{i=1}^d \frac{1}{\lambda_i} \langle P_t\, v_i, v_i \rangle \\
+& =  \sum_{i=1}^d \frac{1}{\lambda_i} \langle \lambda_i v_i, v_i \rangle
+ =  d.
+\end{align*}
+Finally, to show $\eta\,\langle x, \tilde{\ell}_t \rangle \le 1$ observe that
+$$
+\langle x, \tilde{\ell}_t \rangle  =  \langle x_t, \ell_t \rangle \langle x, P_t^{-1} x_t \rangle
+ \leq  \langle x, P_t^{-1} x_t \rangle
+ \leq  \frac{1}{\min_{1 \leq i \leq d} \lambda_i} ,$$
+where the last inequality follows from the fact that $\langle x, x \rangle \leq 1$ for any $x \in \cK$, since $\cK$ is included in the unit ball. To conclude the proof, we need to lower bound the smallest eigenvalue of $P_t$. Using Theorem~\ref{th:john}, one can see that $P_t \succeq \frac{\gamma}{d} I_d$, and thus $\lambda_i \geq \frac{\gamma}{d}$. Since ${\eta d} \le {\gamma}$, the proof is concluded.
+\end{proof}
+
+
+\section{Online Mirror Descent (OMD)} \label{sec:OMD}
+We now introduce the Online Mirror Descent (OMD) algorithm, a powerful generalization of gradient descent for sequential decision problems. We start by describing OMD for convex losses in the full information setting. That is, $\cL$ is a set of convex functions, and at the end of round $t$ the forecaster observes $\ell_t\in\cL$ rather than only $\ell_t(x_t)$. 
+
+The rest of this chapter is organized as follows. Next, we briefly recall a few key concepts from convex analysis. Then we describe the OMD strategy and prove a general regret bound. In Section \ref{sec:OSMD} we introduce Online Stochastic Mirror Descent (OMSD), which is a variant of OMD based on a stochastic estimate of the gradient. We apply this strategy to linear losses in two different bandit settings. Finally, in Section~\ref{sec:ball} we show how OMSD obtains improved bounds in certain special cases. The case of convex losses with bandit feedback is treated in Chapter \ref{nonlinear}.
+
+%\subsection{Convex analysis} \label{sec:convexanalysis}
+We introduce the following definitions.
+%
+\begin{definition}
+Let $\cX\subseteq\R^d$.
+A function $f : \cX \to \R$ is subdifferentiable if for all $x \in \cX$ there exists $g \in \R^d$ such that
+$$f(x) - f(y) \leq g^{\top} (x-y) \qquad\forall y \in \cX~.$$
+Such a $g$ is called a subgradient of $f$ at $x$.
+\end{definition}
+Abusing notation, we use $\nabla f(x)$ to denote both the gradient of $f$ at $x$ when $f$ is differentiable, and any subgradient of $f$ at $x$ when $f$ is subdifferentiable (a sufficient condition for subdifferentiability of $f$ is that $f$ is convex and $\cX$ is open).
+%
+\begin{definition}
+Let $f : \cX \rightarrow \R$ be a convex function defined on a convex set $\cX\subseteq\R^d$. The Legendre-Fenchel transform of $f$ is defined by:
+$$f^*(u) = \sup_{x \in \cX} \left(x^{\top} u - f(x)\right)~.$$
+\end{definition}
+This definition directly implies the Fenchel-Young inequality for convex functions,
+$u^{\top} x \leq f(x) + f^*(u)$.
+%
+
+Let $\cD \subset \R^d$ be an open convex set, and let $\oD$ be the closure of $\cD$. 
+\begin{definition}
+A continuous function $F:\oD\to\R$ is Legendre if 
+\begin{itemize}
+\item[(i)] $F$ is strictly convex and admits continuous first partial
+derivatives on $\cD$;
+\item[(ii)] ${\displaystyle \lim_{x \to \oD \setminus \cD} \norm{\nabla F(x)} = +\infty.}$\footnote{By the equivalence of norms in $\R^d$, this definition does not depend on the choice of the norm.}
+\end{itemize}
+\end{definition}
+%
+The Bregman divergence $D_F: \oD\times\cD \to \R$ associated with a Legendre function $F$ is defined by
+  $
+  D_F(x,y) = F(x) - F(y) - (x-y)^{\top} \nabla F(y)
+  $. 
+Moreover, we say that $\cD^* = \nabla F (\cD)$ is the dual space of $\cD$ under $F$.
+Note that, by definition, $D_F(x,y) > 0$ if $x \neq y$, and $D_F(x,x)=0$. The following lemma is the key to understand how a Legendre function act on the space. See~\cite[Proposition~11.1]{CL06} for a proof.
+%
+\begin{lemma}
+Let $F$ be a Legendre function. Then $F^{**} = F$, and $\nabla F^* = (\nabla F)^{-1}$ restricted on the set $\cD^*$. Moreover, for all $x, y \in \cD$,
+\begin{equation} \label{eq:transrelation}
+D_F(x,y) = D_{F^*}\bigl(\nabla F(y), \nabla F(x)\bigr)~.
+\end{equation}
+\end{lemma}
+The gradient $\nabla F$ maps $\cD$ to the dual space $\cD^*$, and $\nabla F^*$ is the inverse mapping from the dual space to the original (primal) space. Note also that~\eqref{eq:transrelation} shows that the Bregman divergence in the primal exactly corresponds to the Bregman divergence of the Legendre-transform in the dual.
+
+The next lemma shows that the geometry induced by a Bregman divergence resembles to the geometry of the squared Euclidean distance. See~\cite[Lemma~11.3]{CL06} for a proof.
+%
+\begin{lemma}[Generalized Pythagorean inequality] \label{lem:proj}
+Let $\cK \subseteq \oD$ be a closed convex set such that $\cK \cap \cD \neq \emptyset$. Then, for all $x \in \cD$, the Bregman projection
+$$z = \argmin_{y \in \cK} D_F(y,x)$$
+exists and is unique. Moreover, for all $z \in \cK \cap \cD$ and $y \in \cK$,
+$$D_F(y,x) \geq D_F(y,z) + D_F(z,x)~.$$
+\end{lemma}
+%
+%\subsection{Online Mirror Descent (OMD)} \label{sec:OMDalgo}
+The idea of OMD is very simple: first, select a Legendre function $F$ on $\oD \supset \cK$ (such that $\cK \cap \cD \neq \emptyset$); second, perform a gradient descent step, where the update with the gradient is performed in the dual space $\cD^*$ rather than in the primal $\cD$; third, project back to $\cK$ according to the Bregman divergence defined by $F$.
+%
+\bookbox{
+{\em OMD (Online Mirror Descent):}
+
+\medskip\noindent
+Parameters: compact and convex set $\cK\subseteq\R^d$, learning rate $\eta > 0$, Legendre function $F$ on $\oD \supset \cK$.\\
+Initialize: ${\displaystyle x_1 \in \argmin_{x \in \cK} F(x)}$ (note that $x_1 \in \cK \cap \cD$).
+
+
+\smallskip\noindent
+For each round $t=1,2,\dots,n$
+\begin{itemize}
+\item[(1)] Play $x_t$ and observe loss vector $\ell_t$.
+\item[(2)] $w_{t+1} = \nabla F^*\Bigl(\nabla F(x_t) - \eta \nabla \ell_t(x_t) \Bigr)$.
+\item[(3)] ${\displaystyle x_{t+1} = \argmin_{y \in \cK} D_F(y, w_{t+1}) }$.
+\end{itemize}
+}
+
+Note that step~(2) is well defined if the following consistency condition is satisfied:
+\begin{equation} \label{eq:consistency}
+\nabla F(x) - \eta \nabla \ell(x) \in \cD^* \qquad \forall (x,\ell) \in \bigl(\cK \cap \cD\bigr) \times \cL~. 
+\end{equation}
+Note also that step~(2) can be rewritten as
+\begin{equation} \label{eq:MGD3}
+\nabla F(w_{t+1}) = \nabla F(x_t) - \eta \nabla \ell_t(x_t)~.
+\end{equation}
+Finally, note that the Bregman projection in step~(3) is a convex program, in the sense that $x \mapsto D_F(x,y)$ is always a convex function. This does not necessarily imply that step~(3) can be performed efficiently, since in some cases the feasible set $\cK$ might only be described with an exponential number of constraints (we encounter examples like this in Section~\ref{sec:semibandit}).
+
+In the description above we emphasized that $F$ has to be a Legendre function. In fact, as we see in Theorem~\ref{th:Fnotlegendre}, if $F$ has effective domain $\cK$ (that is, $F$ takes value $+\infty$ outside of $\cK$), then it suffices that the Legendre-Fenchel dual $F^*$ is differentiable on $\R^d$ to obtain a good regret bound. See the end of this section for more details on this.
+
+When $\cK$ is the simplex and $F(x) = \sum_{i=1}^d x_i \ln x_i - \sum_{i=1}^d x_i$, OMD reduces to 
+an exponentially weighted average forecaster, similar to those studied in Chapter~\ref{adversarial}. The well-known online gradient descent strategy corresponds to taking $F(x) = \frac12 \norm{x}^2_2$. In the following we shall see other possibilities for the Legendre function $F$.
+
+We prove now a very general and powerful theorem concerning the regret of OMD.
+%
+\begin{theorem}[Regret of OMD with a Legendre function] \label{th:MGD}
+Let $\cK$ be a compact and convex set of arms, $\cL$ be a set of subdifferentiable functions, and $F$ a Legendre function defined on $\oD \supset \cK$, such that \eqref{eq:consistency} is satisfied. Then OMD satisfies for any $x \in \cK$,
+\begin{align*}
+\sum_{t=1}^n \ell_t(x_t) - \sum_{t=1}^n \ell_t(x)
+& \leq \frac{F(x) - F(x_1)}{\eta} \\
+&  \quad + \frac{1}{\eta} \sum_{t=1}^n D_{F^*}\bigg(\nabla F(x_t) - \eta \nabla \ell_t(x_t), \nabla F(x_t)\bigg)~.
+\end{align*}
+\end{theorem}
+%
+\begin{proof}
+Let $x \in \cK$. Since $\cL$ is a set of subdifferentiable functions, we have:
+$$\sum_{t=1}^n \bigl( \ell_t(x_t) - \ell_t(x) \bigr) \leq \sum_{t=1}^n \nabla \ell_t(x_t)^{\top} (x_t -x)~.$$
+Using \eqref{eq:MGD3}, and applying the definition of $D_F$, one obtains
+  \begin{align*}
+  \eta \nabla \ell_t(x_t)^{\top} (x_t - x) & = (x-x_t)^{\top} \big(\nabla F(w_{t+1}) - \nabla F(x_t) \big)\\
+  & = D_F(x,x_t)+D_F(x_t,w_{t+1})-D_F(x,w_{t+1})~.
+  \end{align*}
+By Lemma \ref{lem:proj}, one gets 
+  $D_F(x,w_{t+1}) \ge D_F(x,x_{t+1}) + D_F(x_{t+1},w_{t+1}),$ hence
+  \begin{align*}
+  \eta \nabla \ell_t(x_t)^{\top} (x_t - x) & \le D_F(x,x_t)+D_F(x_t,w_{t+1}) \\
+& \quad -D_F(x,x_{t+1})-D_F(x_{t+1},w_{t+1})~.
+  \end{align*}
+Summing over $t$ then gives  
+  \begin{align*}
+  \sum_{t=1}^n \eta \nabla \ell_t(x_t)^{\top} (x_t - x) & \le D_F(x,x_1)-D_F(x,x_{n+1}) \\
+& \quad +\sum_{t=1}^n \big(D_F(x_t,w_{t+1}) -D_F(x_{t+1},w_{t+1})\big)~.
+  \end{align*}
+By the nonnegativity of the Bregman divergences, we get 
+$$\sum_{t=1}^n \eta \nabla \ell_t(x_t)^{\top} (x_t - x)
+\le D_F(x,x_1)+\sum_{t=1}^n D_F(x_t,w_{t+1})~.$$
+From \eqref{eq:transrelation}, one has
+  $
+  D_F(x_t,w_{t+1})=D_{F^*}\big(\nabla F(x_t)- \eta \nabla \ell_t(x_t),\nabla F(a_t)\big)
+  $
+and, moreover, by first-order optimality, one has $D_F(x,x_1) \leq F(x) - F(x_1)$, which concludes the proof.
+\end{proof}
+%
+We show now how to prove a regret bound if $F$ has effective domain $\cK$ and $F^*$ is differentiable on $\R^d$, but not necessarily Legendre. In this case, it is easy to see that step~(1) and step~(2) in OMD reduce to
+\[
+x_{t+1} = \nabla F^* \left( - \eta \sum_{s=1}^{t-1} \nabla \ell_s(x_s) \right)~.
+\]
+%
+\begin{theorem}[Regret of OMD with non-Legendre function] \label{th:Fnotlegendre}
+Let $\cK$ be a compact set of actions, $\cL$ be a set of subdifferentiable functions, and $F$ a function with effective domain $\cK$ such that $F^*$ is differentiable on $\R^d$. Then for any $x \in \cK$ OMD satisfies
+\begin{align*}
+\sum_{t=1}^n \ell_t(x_t) - \sum_{t=1}^n \ell_t(x)
+& \leq \frac{F(x) - F(x_1)}{\eta} \\
+& + \frac{1}{\eta} \sum_{t=1}^n D_{F^*}\bigg(- \eta \sum_{s=1}^{t} \nabla \ell_s(x_s), - \eta \sum_{s=1}^{t-1} \nabla \ell_s(x_s) \bigg).
+\end{align*}
+\end{theorem}
+%
+\begin{proof}
+Let $x \in \cK$. Since $\cL$ is a set of subdifferentiable functions, we have
+$$\sum_{t=1}^n \bigl( \ell_t(x_t) - \ell_t(x) \bigr) \leq \sum_{t=1}^n \nabla \ell_t(x_t)^{\top} (x_t -x)~.$$ Using the Fenchel-Young inequality, one obtains
+\begin{align*}
+- \eta \sum_{t=1}^n &\nabla \ell_t(x_t)^{\top} x
+\leq
+    F(x) + F^*\left( - \eta \sum_{t=1}^{n} \nabla \ell_t(x_t) \right)
+\\&=
+    F(a) + F^*(0) \\ & \quad + \sum_{t=1}^n \left( F^*\left( - \eta \sum_{s=1}^{t} \nabla \ell_s(x_s)\right)  - F^*\left( - \eta \sum_{s=1}^{t-1} \nabla \ell_s(x_s)\right) \right)~.
+\end{align*}
+Observe that $F^*(0)= - F(x_1)$ and, for each term in the above sum,
+\begin{align*}
+    \nabla F^*&\left( - \eta \sum_{s=1}^{t-1} \nabla \ell_s(x_s) \right)^{\top} \Bigl(- \eta \nabla \ell_t(x_t)\Bigr)
+\\& \quad
+    + D_{F^*}\left(- \eta \sum_{s=1}^{t} \nabla \ell_s(x_s), - \eta \sum_{s=1}^{t-1} \nabla \ell_s(x_s)\right)
+\\ &=
+    - \eta x_t^{\top} \nabla \ell_t(x_t) + D_{F^*}\left(- \eta \sum_{s=1}^{t} \nabla \ell_s(x_s), - \eta \sum_{s=1}^{t-1} \nabla \ell_s(x_s) \right)~.
+\end{align*}
+\end{proof}
+
+\section{Online Stochastic Mirror Descent (OSMD)} \label{sec:OSMD}
+We now turn to the analysis of the bandit setting, where the gradient information $\nabla \ell_t(x_t)$ is not available, and thus one cannot run OMD. This scenario has been extensively in gradient-free optimization, and the basic idea is to play a perturbed version $\tilde{x}_t$ of the current point $x_t$. This should be done in such a way that, upon observing $\ell_t(\tilde{x}_t)$, one can build an unbiased estimate $\tilde{g}_t$ of $\nabla \ell_t(x_t)$. Whereas such estimators are presented in Chapter~\ref{nonlinear}, here we restrict our attention to linear losses. For this simpler case we consider specialized estimators with optimal performances.
+%
+Given a perturbation scheme, one can run OMD with the gradient estimates instead of the true gradients. We call Online Stochastic Mirror Descent (OSMD) the resulting algorithm.
+%
+\bookbox{
+{\em OSMD (Online Stochastic Mirror Descent):}
+
+\smallskip\noindent
+Parameters: compact and convex set $\cK\subseteq\R^d$, learning rate $\eta > 0$, Legendre function $F$ on $\oD \supset \cK$.\\
+Initialize: ${\displaystyle x_1 \in \argmin_{x \in \cK} F(x)}$ (note that $x_1 \in \cK \cap \cD$).
+
+\smallskip\noindent
+For each round $t=1,2,\dots,n$
+\begin{itemize}
+\vspace{-2mm}
+\item[(1)] Play a random perturbation $\tilde{x}_t$ of $x_t$ and observe $\ell_t\bigl(\tilde{x}_t\bigr)$
+\item[(2)] Compute random estimate $\tilde{g}_t$ of $\nabla \ell_t(x_t)$
+\item[(3)] $w_{t+1} = \nabla F^*\Bigl(\nabla F(x_t) - \eta \tilde{g}_t \Bigr)$
+\item[(4)] ${\displaystyle x_{t+1} = \argmin_{y \in \cK} D_F(y, w_{t+1}) }$
+\end{itemize}
+}
+
+In order to relate this linear bandit strategy to the Exp2 forecaster~(\ref{eq:exp2def}), it is important to observe that running the Exp2 forecaster over a finite set $\cK$ of arms, with exploration distribution $\mu$ and mixing coefficient $\gamma > 0$, is equivalent to running OSMD over the $|\cK|$-dimensional simplex with $F(x) = \tfrac{1}{\eta}\sum_{x\in\cK} x\ln x$ (the negative entropy), $\tilde{x}_t$ drawn from $(1-\gamma)x_t + \gamma\,\mu$, and estimated linear loss $\tilde{g}_t = \bigl(\langle x, \tilde{\ell}_t \rangle\bigr)_{x\in\cK}$. Indeed, the projection step (4), when $F$ is the negative entropy, corresponds to the standard normalization of a probability distribution.
+
+The following theorem establishes a general regret bound for OSMD. Note that here the pseudo-regret is defined as
+$$\oR_n = \E \sum_{t=1}^n \ell_t(\tilde{x}_t) - \min_{x \in \cK} \E \sum_{t=1}^n \ell_t(x)~.$$
+Note also that we state the theorem for a Legendre function $F$, but a similar result can be obtained under the same assumptions as those of Theorem~\ref{th:Fnotlegendre}.
+%
+\begin{theorem}[Pseudo-regret of OSMD] \label{th:OSMD2}
+Let $\cK$ be a compact and convex set, $\cL$ a set of subdifferentiable functions, and $F$ a Legendre function defined on $\oD \supset \cK$. If OSMD is run with a loss estimate $\tilde{g}_t$ such that~\eqref{eq:consistency} is satisfied (with $\nabla \ell(x)$ replaced by $\tilde{g}_t$), and with $\E\bigl[\tilde{g}_t \mid x_t\bigr] =\nabla \ell_t(x_t)$, then
+\begin{align*}
+\oR_n & \leq \frac{\sup_{x \in \cK} F(x) - F(x_1)}{\eta} + \frac{1}{\eta} \sum_{t=1}^n \E\, D_{F^*}\Bigl(\nabla F(x_t) - \eta \tilde{g}_t, \nabla F(x_t)\Bigr) \\
+&\quad + \sum_{t=1}^n \E\Bigl[\norm{x_t - \tilde{x}_t}  \norm{\tilde{g}_t}_*\Bigr]
+\end{align*}
+for any norm $\norm{\,\cdot\,}$.
+%
+Moreover if the loss is linear, that is $\ell(x) = \ell^{\top} x$, then
+\begin{align*}
+\oR_n & \leq \frac{\sup_{x \in \cK} F(x) - F(x_1)}{\eta} + \frac{1}{\eta} \sum_{t=1}^n \E\, D_{F^*}\Bigl(\nabla F(x_t) - \eta \tilde{g}_t, \nabla F(x_t)\Bigr) \\
+&\quad + \sum_{t=1}^n \E\Bigl[\norm{x_t - \E\bigl[\tilde{x}_t \mid x_t\bigr]} \norm{\tilde{g}_t}_*\Bigr]~.
+\end{align*}
+\end{theorem}
+%
+\begin{proof}
+Using Theorem \ref{th:MGD} one directly obtains:
+$$\sum_{t=1}^n \tilde{g}_t^{\top} (x_t - x) \leq \frac{F(x) - F(x_1)}{\eta} + \frac{1}{\eta} \sum_{t=1}^n \E\, D_{F^*} \Bigl(\nabla F(x_t) - \eta \tilde{g}_t, \nabla F(x_t)\Bigr)~.$$
+Moreover since $\E\bigl[\tilde{g}_t \mid x_t\bigr] =\nabla \ell_t(x_t)$, one has:
+\begin{align*}
+\E \sum_{t=1}^n \bigl( \ell_t(\tilde{x}_t) - \ell_t(x) \bigr) & = \E \sum_{t=1}^n \Bigl( \ell_t(\tilde{x}_t) - \ell_t(x_t) + \ell_t(x_t) - \ell_t(x) \Bigr) \\
+& \leq \E \sum_{t=1}^n \norm{x_t - \tilde{x}_t} \norm{\tilde{g}_t}_* + \E \sum_{t=1}^n \nabla \ell_t(x_t)^{\top} (x_t - x) \\
+& = \E \sum_{t=1}^n \norm{x_t - \tilde{x}_t} \norm{\tilde{g}_t}_* + \E \sum_{t=1}^n \tilde{g}_t^{\top} (x_t - x)
+\end{align*}
+which concludes the proof of the first regret bound. The case of a linear loss follows very easily from the same computations.
+\end{proof}
+
+\section{Online combinatorial optimization} \label{sec:semibandit}
+In this section we consider an interesting special case of online linear optimization. In the online combinatorial optimization setting the set of arms is $\cC \subseteq \{0,1\}^d$ and the set of linear loss functions is $\cL = [0,1]^d$. We assume $\norm{v}_1 = m$ for all $v\in\cC$ and for some integer $m \le d$. Many interesting problems fall into this framework, including ranking/selection of $m$ items, or path planning.
+
+Here we focus on the version of the problem with {\em semi-bandit} feedback, which is defined as follows: after playing $v_t \in \cC$, one observes $\bigl(\ell_t(1) v_t(1), \hdots, \ell_t(d) v_t(d)\bigr)$. Namely, one only observes the coordinates of the loss that were {\em active} in the arm $v_t$ that we chose. This setting has thus a much weaker feedback than the full information case, but still stronger than the bandit case. Note that the semi-bandit setting includes the basic multi-armed bandit problem of Chapter~\ref{adversarial}, which simply corresponds to $\cC = \{e_1, \hdots, e_d\}$ where $e_1, \hdots, e_d$ is the canonical basis of $\R^d$.
+
+Again, the key to tackle this kind of problem is to select $v_t$ at random from some probability distribution $p_t$ over $\cC$. Note that such a probability corresponds to an average point $x_t \in \conv(\cC)$. Turning the tables, one can view $v_t$ as a random perturbation of $x_t$ such that $\E\bigl[v_t \mid x_t\bigr] = x_t$. This suggests a strategy: play OSMD on $\cK=\conv(\cC)$, with $\tilde{x}_t = v_t$. Surprisingly, we show that this randomization is enough to obtain a good unbiased estimate of the loss, and that it is not necessary to add further perturbations to $x_t$. Note that $\E\bigl[\tilde{x}_t \mid x_t\bigr] = x_t$ by definition. We now need to describe how to obtain an unbiased estimate of the gradient (which is the loss vector itself, since losses are linear). The following simple formula gives an unbiased estimate of the loss:
+\begin{equation} \label{eq:semibanditestimate}
+\tilde{\ell}_t(i) = \frac{\ell_t(i)\,v_t(i)}{x_t(i)} \qquad \forall i \in \{1,\hdots, d\} .
+\end{equation}
+Note that this is a valid estimate since it only makes use of $\bigl(\ell_t(1) v_t(1), \hdots, \ell_t(d) v_t(d)\bigr)$. Moreover, it is unbiased with respect to the random drawing of $v_t$ from $p_t$. Indeed,
+\[
+    \E\bigl[\tilde{\ell}_t(i) \mid x_t\bigr] = \frac{\ell_t(i)}{x_t(i)}\E\bigl[v_t(i) \mid x_t\bigr] = \ell_t(i)~.
+\]
+Using Theorem \ref{th:OSMD2} one directly obtains:
+\begin{align}
+\nonumber
+    \oR_n
+&\le
+    \frac{\sup_{x \in \cK} F(x) - F(x_1)}{\eta}
+\\ &\quad + \frac{1}{\eta} \sum_{t=1}^n \E\, D_{F^*}\Bigl(\nabla F(x_t) - \eta \tilde{\ell}_t, \label{eq:semibanditregret}
+\nabla F(x_t)\Bigr)~.
+\end{align}
+We show now how to use this bound to obtain concrete performances for OSMD using the negative entropy as Legendre function. Later, we show that one can improve the results by logarithmic factors, using a more subtle Legendre function.
+%With this loss estimate it is possible to use OMD, since here the gradient information is estimated by $\tilde{z_t}(i)$. The resulting regret bounds holds for the {\em pseudo-regret} defined as:
+%$$\oR_n = \E \sum_{t=1}^n V_t^T z_t - \min_{u \in \cC} \E \sum_{t=1}^n u^T z_t .$$
+%Of course it would be more interesting to obtain high probability bounds on the actual regret:
+%$$\sum_{t=1}^n V_t^T z_t - \min_{u \in \cC} \sum_{t=1}^n u^T z_t .$$
+%This type of bounds are out of the scope of these lecture notes, but note that it is possible to obtain them and often one first need a bound on the pseudo-regret (just as we did in [Chapter \ref{chap:simplex}, Section \ref{sec:finite}].
+%\newline
+%
+%Note also that since $\tilde{z_t}$ is an unbiased estimate we have:
+%$$\oR_n \leq  \E \left( \sum_{t=1}^n V_t^T \tilde{z_t} - \min_{u \in \cC} \sum_{t=1}^n u^T \tilde{z_t} \right) .$$
+%Since one uses OMD on the sequence $\tilde{z_t}$, the right hand side is automatically bounded. However one can see that one needs to control $\E ||\tilde{z_t}||^2$. This quantity is clearly unbounded since $a_t(i)$ might be very close to $0$. One can get around this problem by slightly refining the bound in terms of some {\em local norm}. We first show that in fact we already did it for the negative entropy, and we then generalize these computations to remove an extraneous logarithmic factor.
+
+%\subsection{Negative entropy} \label{sec:linExp}
+We start with OSMD and the negative entropy.
+%
+\begin{theorem}[OSMD with negative entropy]
+\label{th:osmdnegent}
+For any set $\cC\subseteq\{0,1\}^d$, if OSMD is run on $\cK=\conv(\cC)$ with $F(x) = \sum_{i=1}^d x_i \ln x_i - \sum_{i=1}^d x_i$, perturbed points $\tilde{x}_t$ such that $\E\bigl[\tilde{x}_t \mid x_t\bigr] = x_t$, and loss estimates $\tilde{\ell}_t$, then
+$$\oR_n \leq \frac{m}{\eta}\ln \frac{d}{m} + \frac{\eta}{2} \sum_{t=1}^n \sum_{i=1}^d \E\bigl[x_t(i)\,\tilde{\ell}_t(i)^2\bigr]~.$$
+In particular, with the estimate \eqref{eq:semibanditestimate} and $\eta= \sqrt{\frac{2m}{nd}\ln\frac{d}{m}}$,
+$$\oR_n \leq  \sqrt{2 m d n \ln \frac{d}{m}}~.$$
+\end{theorem}
+%
+\begin{proof}
+First note that:
+$$F(x) - F(x_1) \leq \sum_{i=1}^d x_1(i) \ln \frac{1}{x_1(i)} \leq m \ln \left( \sum_{i=1}^d \frac{x_1(i)}{m} \frac{1}{x_1(i)}\right) = m \ln \frac{d}{m}~.$$
+Moreover, straightforward computations give
+$$D_{F^*}\bigg(\nabla F(x_t) - \eta \tilde{\ell}_t, \nabla F(x_t)\bigg) =\sum_{i=1}^d x_{t}(i)\, \Theta\bigl(- \eta \tilde{\ell}_t(i)\bigr)$$
+where $\Theta : x \in \R \mapsto \exp(x) - 1 - x$. Using that $\Theta(x) \leq \frac{x^2}{2}$ for all $x \leq 0$, concludes the proof of the first inequality (since $\tilde{\ell}_t(i) \geq 0$). The second inequality follows from
+\[
+    x_t(i)\,\E\bigl[\tilde{\ell}_t(i)^2 \mid x_t\bigr] = x_t(i)\frac{\ell_t(i)^2}{x_t(i)^2}\E\bigl[v_t(i) \mid x_t\bigr] \le 1
+\]
+where we used $\ell_t(i) \in [0,1]$ and $v_t(i) \in \{0,1\}$.
+\end{proof}
+%
+%\subsection{Legendre function derived from a potential} \label{sec:INF}
+%
+We now greatly generalize the negative entropy with the following definition. When used with OSMD, this more general entropy allows us to obtain a bound tighter than that of Theorem~\ref{th:osmdnegent}.
+%def
+\begin{definition}
+Let $\omega \ge 0$.
+A function 
+$\psi: (-\infty,a) \rightarrow \R^*_+$ for some 
+$a\in\R\cup\{+\infty\}$ is called an 
+$\omega$-potential if it is convex,
+ continuously differentiable, and satisfies
+\begin{align*} 
+& \lim_{x\rightarrow -\infty} \psi(x)=\omega &&
+\lim_{x\rightarrow a} \psi(x)= +\infty \notag \\
+& \psi' > 0 && \int_{\omega}^{\omega+1} |\psi^{-1}(s)|ds <+\infty~.
+\end{align*}
+With a potential $\psi$ we associate the function $F_{\psi}$ defined on $\cD=(\omega, +\infty)^d$ by
+$$F_{\psi}(x) = \sum_{i=1}^d \int_{\omega}^{x_i} \psi^{-1}(s) ds~.$$
+\end{definition}
+%
+We restrict our attention to $0$-potentials. A non-zero $\omega$ might be used to derive high probability regret bounds (instead of pseudo-regret bounds). Note that with $\psi(x)=e^x$ we have that $F_{\psi}$ reduces to the negative entropy.
+%prop
+\begin{lemma} \label{lem:psi}
+Let $\psi$ be a $0$-potential. Then $F_{\psi}$ is Legendre
+%and for all $x,y \in \cD=(0,+\infty)^d$,
+%  \begin{equation}\label{eq:dfpsi}
+%  D_F(x,y)=\sum_{i=1}^d \bigg(\int_{y_i}^{x_i} \psi^{-1}(s)ds-(x_i-y_i)\psi^{-1}(y_i) \bigg).
+%  \end{equation}
+%Moreover 
+and for all $u,v \in \cD^*=(-\infty,a)^d$ such that $u_i \leq v_i$ for $i=1,\hdots,d$,
+$$D_{F^*}(u,v) \leq \frac{1}{2} \sum_{i=1}^d \psi'(v_i) (u_i - v_i)^2~.$$
+\end{lemma}
+%
+\begin{proof}
+It is easy to check that $F$ is a Legendre function. Moreover, since
+	$
+  \nabla F^*(u)= (\nabla F)^{-1}(u)= \big(\psi(u_1),\dots,\psi(u_d)\big)
+	$
+we obtain
+	$$
+  D_{F^*}(u,v)=\sum_{i=1}^d \bigg(\int_{v_i}^{u_i} \psi(s)ds-(u_i-v_i)\psi(v_i)\bigg)~.
+  $$
+From a Taylor expansion, we have
+	$$
+	D_{F^*}(u,v)\le\sum_{i=1}^d \max_{s\in[u_i,v_i]} \frac12 \psi'(s) (u_i-v_i)^2~.
+	$$
+Since the function $\psi$ is convex, and $u_i \leq v_i$, we have
+	$$
+	\max_{s\in[u_i,v_i]} \psi'(s) \le \psi'\big(\max\{u_i,v_i\}\big) \leq \psi'(v_i)
+	$$
+which gives the desired result.
+\end{proof}
+%
+We are now ready to bound the pseudo-regret of OSMD run with an arbitrary $0$-potential. For a specific choice of the potential we obtain an improvement of Theorem~\ref{th:osmdnegent}. In particular for $m=1$ this result gives the log-free bound for the adversarial multi-armed bandit that was discussed in Section \ref{sec:logfree}.
+%theorem
+\begin{theorem}[OSMD with a $0$-potential] \label{th:osmdzero}
+For any set subset $\cC$ of $\{0,1\}^d$, if OSMD is run on $\cK=\conv(\cC)$ with $F_{\psi}$ defined by a $0$-potential $\psi$, and non-negative loss estimates $\tilde{\ell}_t$, then
+$$\oR_n \leq \frac{\sup_{x \in \cK} F_{\psi}(x) - F_{\psi}(x_1)}{\eta} + \frac{\eta}{2} \sum_{t=1}^n \sum_{i=1}^d \E\left[\frac{\tilde{\ell}_t(i)^2}{(\psi^{-1})'\bigl(x_t(i)\bigr)}\right]~.$$
+In particular, choosing the $0$-potential $\psi(x) = (- x)^{-q}$, the estimate~\eqref{eq:semibanditestimate}, and $\eta= \sqrt{\frac{2}{q-1} \frac{m^{1 - 2/q}}{d^{1 - 2/q}}}$,
+$$\oR_n \leq q \sqrt{\frac{2}{q-1} m d n}~.$$
+With $q=2$ this gives
+$$\oR_n \leq 2 \sqrt{2 m d n}~.$$ 
+\end{theorem}
+%
+\begin{proof}
+First note that since $\cD^*=(-\infty,a)^d$ and $\tilde{\ell}_t$ has non-negative coordinates, then~\eqref{eq:consistency} is satisfied and thus OSMD is well defined.
+
+The first inequality trivially follows from~\eqref{eq:semibanditregret}, Lemma~\ref{lem:psi}, and the fact that $\psi'\bigl(\psi^{-1}(s)\bigr) = \frac{1}{(\psi^{-1})'(s)}$.
+
+Let $\psi(x) = (- x)^{-q}$. Then we have that $\psi^{-1}(x) = - x^{-1/q}$ and $F(x)= - \frac{q}{q-1} \sum_{i=1}^d x_i^{1 - 1/q}$. In particular, by H{\"o}lder's inequality, since $\sum_{i=1}^d x_1(i) =m$,
+$$F(x) - F(x_1) \leq \frac{q}{q-1} \sum_{i=1}^d x_1(i)^{1 - 1/q} \leq \frac{q}{q-1} m^{(q-1)/q} d^{1/q}~.$$
+Moreover, note that $(\psi^{-1})'(x) = \frac1q x^{- 1 - 1/q}$, and
+$$\sum_{i=1}^d \E\left[\frac{\tilde{\ell}_t(i)^2}{(\psi^{-1})'(x_t(i))} \,\bigg|\, x_t \right] \leq q \sum_{i=1}^d x_t(i)^{1/q} \leq q m^{1/q} d^{1 - 1/q}$$
+which ends the proof.
+\end{proof}
+
+\section{Improved regret bounds for bandit feedback} \label{sec:ball}
+We go back to the setting of linear losses with bandit feedback considered in Section~\ref{sec:Exp2}. Namely, actions belong to a compact and convex set $\cK\subseteq\R^d$, losses belong to a subset $\cL\subseteq\R^d$, and the loss of playing $x_t\in\cK$ at time $t$ is $x_t^{\top}\ell_t$, which is also the feedback received by the player. As we proved in Section~\ref{sec:Exp2}, under the bounded scalar loss assumption, $|x^{\top}\ell| \le 1$ for all $(x,\ell)\in\cK\times\cL$, one can obtain a regret bound of order $d \sqrt{n}$ (up to logarithmic factors) for any compact and convex set $\cK$. It can be shown that this rate is not improvable in general. However, results from Section~\ref{sec:semibandit} (or from Chapter~\ref{adversarial}) show that for the simplex, one can obtain a regret bound of order $\sqrt{d n}$, and we showed in Chapter~\ref{adversarial} that this rate is also unimprovable. The problem of obtaining a charaterization of the sets for which such improved regret bounds are possible is an open problem. Improved rates can be obtained for another convex body: the Euclidean ball. We now describe a strategy that attains a pseudo-regret of order $\sqrt{d n}$ (up to a logarithmic factor) in this case. The strategy is based on OSMD with a carefully chosen Legendre function.
+
+In the following, let $\norm{\,\cdot\,}$ be the Euclidean norm. We consider the online linear optimization problem with bandit feedback on the Euclidean unit ball $\cK = \{x \in \R^d \,:\, \norm{x} \leq 1 \}$. We perform the following perturbation of a point $x_t$ in the interior of $\cK$,
+\[
+    \tilde{x}_t = \left\{ \begin{array}{cl}
+        x_t / \norm{x_t} & \text{if $\xi_t = 1$,}
+    \\
+        \epsilon_t\,e_{I_t} & \text{otherwise}
+    \end{array} \right.
+\]
+where $\xi_t$ is a Bernoulli random variable of parameter $\norm{x_t}$, $I_t$ is drawn uniformly at random in $\{1, \hdots, d\}$, and $\epsilon_t$ is a Rademacher random variable with parameter $\frac12$.
+
+It is easy to check that this perturbation is unbiased, in the sense that
+%\begin{equation} \label{eq:ballunbiased1}
+$\E\bigl[\tilde{x}_t \mid x_t\bigr] = x_t$.
+%\end{equation}
+An unbiased estimate of the loss vector is given by
+\begin{equation} \label{eq:ballestimate}
+\tilde{\ell}_t = d(1 - \xi_t) \frac{\tilde{x}_t^{\top}\ell_t}{1- \norm{x_t}}\,\tilde{x}_t~.
+\end{equation}
+Again, it is easy to check that
+%\begin{equation} \label{eq:ballunbiased2}
+$\E\bigl[\tilde{\ell}_t \mid x_t\bigr] = x_t$.
+%\end{equation}
+We are now ready to prove the following result, showing that OSMD with a suitable $F$ achieves a pseudo-regret of order $\sqrt{dn\ln n}$ on the Euclidean ball.
+\begin{theorem}[OSMD for the Euclidean ball] \label{th:ball}
+Let $\cK = \cL = \{x \in \R^d \,:\, \norm{x} \leq 1 \}$ define an online linear optimization problem with bandit feedback. If OSMD is run on $\cK' = (1-\gamma)\cK$ with $F(x) = - \ln(1 - \norm{x}) - \norm{x}$ and the estimate~\eqref{eq:ballestimate}, then for any $\eta > 0$ such that $\eta d \leq \frac12$,
+\begin{equation} \label{eq:ballregret1}
+\oR_n \leq \gamma n + \frac{\ln \gamma^{-1}}{\eta} + \eta \sum_{t=1}^n \E\Bigl[(1 - \norm{x_t})\big\|\tilde{\ell}_t\big\|^2\Bigr]~.
+\end{equation}
+In particular, with $\gamma = \frac{1}{\sqrt{n}}$ and $\eta= \sqrt{\frac{\ln n}{2 n d}}$,
+\begin{equation} \label{eq:ballregret2}
+\oR_n \leq  3 \sqrt{d n \ln n}~.
+\end{equation}
+\end{theorem}
+%
+\begin{proof}
+First, it is clear that by playing on $\cK' = (1-\gamma)\cK$ instead of $\cK$, OSMD incurs an extra $\gamma n$ regret. Second, note that $F$ is stricly convex (it is the composition of a convex and nondecreasing function with the Euclidean norm) and
+\begin{equation} \label{eq:ballgradient}
+\nabla F (x) = \frac{x}{1 - \norm{x}}~.
+\end{equation}
+In particular, $F$ is Legendre on the open unit ball $\cD = \{x \in \R^d \,:\, \norm{x} < 1 \}$, and one has $\cD^* = \R^d$. Hence~\eqref{eq:consistency} is always satisfied, and OSMD is well defined. Now the regret with respect to $\cK'$ can be bounded as follows: using Theorem~\ref{th:OSMD2} and the unbiasedness of $\tilde{x}_t$ and $\tilde{\ell}_t$ we get
+$$\frac{\sup_{x \in \cK} F(x) - F(x_1)}{\eta} + \frac{1}{\eta} \sum_{t=1}^n \E\,D_{F^*}\Bigl(\nabla F(x_t) - \eta \tilde{\ell}_t, \nabla F(x_t)\Bigr)~.$$
+The first term is clearly bounded by $\frac{1}{\eta}\ln\frac{1}{\gamma}$ (since $x_1 = 0$). For the second term, we need to do a few computations. The first one follows from~\eqref{eq:ballgradient}), the others follow from simple algebra
+\begin{align*}
+\nabla F^* (u) & = \frac{u}{1 + \norm{u}}\\
+F^*(u) & = - \ln (1 + \norm{u}) + \norm{u}\\
+D_{F^*}(u, v) & = \frac{1}{1+\norm{v}} \bigg(\norm{u} - \norm{v} + \norm{u} \cdot \norm{v} - v^T u   \\
+& \qquad \left. - (1+\norm{v}) \ln \left( 1 + \frac{\norm{u} - \norm{v}}{1 + \norm{v}}\right) \right)~.
+\end{align*}
+Let $\Theta(u,v)$ such that $D_{F^*}(u, v) = \frac{1}{1+\norm{v}} \Theta(u,v)$. First note that 
+\begin{equation} \label{eq:superball}
+\frac{1}{1+\norm{\nabla F (x_t)}} = 1 - \norm{x_t}~.
+\end{equation}
+Thus, in order to prove \eqref{eq:ballregret1} it remains to show that $\Theta(u,v) \leq \norm{u - v}^2$, for $ u = \nabla F(x_t) - \eta \tilde{\ell}_t$ and $v = \nabla F(x_t)$. In fact, we prove that this inequality holds as soon as $\frac{\norm{u} - \norm{v}}{1 + \norm{v}} \geq - \frac{1}{2} .$ This is the case for the pair $(u,v)$ under consideration, since by the triangle inequality, equations \eqref{eq:ballestimate} and \eqref{eq:superball}, and the assumption on $\eta$,
+$$\frac{\norm{u} - \norm{v}}{1 + \norm{v}}  \geq - \frac{\eta \big\|\tilde{\ell}_t\big\|}{1 + \norm{v}} \geq - \eta d \geq - \frac{1}{2}~.$$
+Now using that $\ln(1+x) \geq x -x^2$ for all $x \geq - \frac12$, we obtain that for $u,v$ such that $\frac{\norm{u} - \norm{v}}{1 + \norm{v}} \geq - \frac{1}{2}$,
+\begin{align*}
+\Theta(u,v) & \leq \frac{(\norm{u} - \norm{v})^2}{1 + \norm{v}} + \norm{u} \cdot \norm{v} - v^{\top} u \\ 
+& \leq (\norm{u} - \norm{v})^2 + \norm{u} \cdot \norm{v} - v^{\top} u \\
+& = \norm{u}^2 + \norm{v}^2 - \norm{u} \cdot \norm{v} - v^{\top} u \\
+& = \norm{u - v}^2 + 2 v^{\top} u - \norm{u} \cdot \norm{v} - v^{\top} u \\
+& \leq \norm{u - v}^2
+\end{align*}
+which concludes the proof of \eqref{eq:ballregret1}. For the proof of~\eqref{eq:ballregret2} it suffices to note that
+\begin{align*}
+\E\Bigl[1 - \norm{x_t}\big\|\tilde{\ell}_t\big\|^2\Bigr]  & = (1- \norm{x_t}) \sum_{i=1}^d  \frac{1 - \norm{x_t}}{d} \frac{d^2}{(1 - \norm{x_t})^2} (\ell_t^{\top} e_i)^2 \\
+&  = d \norm{\ell_t}^2 \\
+& \le d
+\end{align*}
+and perform with straightforward computations.
+\end{proof}
+
+\section{Refinements and bibliographic remarks}
+Online convex optimization in the full information setting was introduced by \cite{Zin03}. Online linear optimization with bandit feedback was pioneered in \cite{AK04, MB04}. For this problem, \cite{DHK08} were the first to obtain optimal $\mathcal{O}\bigl(\sqrt{n}\bigr)$ bounds in terms of the number $n$ of rounds. This was done using the Exp2 strategy with an exploration uniform over a barycentric spanner for $\cK$. The exploration part was first improved by \cite{CL11} for combinatorial sets $\cK$. Finally, the optimal exploration based on John's theorem was introduced by \cite{BCK12}. Theorem~\ref{th:exp2john} is extracted from this last paper.
+
+Simultaneously with the line of research on Exp2, algorithms based on Online Mirror Descent were also investigated. Mirror Descent was originally introduced in the seminal work of \cite{Nem79, NY83} as a standard (offline) convex optimization method. A somewhat similar class of algorithms was rediscovered in the online learning community, see \cite{HW98, GLS01, KW01, Sha07}. The connection between existing online learning algorithms (such as Exponential weights or Online Gradient Descent) and Mirror Descent was first made explicit in \cite{CL06} ---see also \cite{Rak09} and \cite{Haz11}. Earlier applications of Mirror Descent in the learning community can be found in \cite{JNTV05}. The first application of Mirror Descent to online linear optimization with bandit feedback was given by \cite{AHR08}. In this pioneering paper, the authors describe the first computationally efficient strategy (i.e., with complexity polynomial in $d$) with $\mathcal{O}(\sqrt{n})$ regret. The main idea is to use Mirror Descent with a self-concordant barrier $F$ for the set $\cK$. Unfortunately, the drawback is a suboptimal dependency on $d$ in the regret. More precisely. they obtain a $\mathcal{O}(d^2 \sqrt{n})$ regret under the bounded scalar loss assumption, while Exp2 with John's exploration attains $\mathcal{O}(d \sqrt{n})$. However, Mirror Descent can also deliver optimal regret bounds in the bandit case, as we showed in Section \ref{sec:ball}, which is extracted from \cite{BCK12}.
+
+The presentation of the Online Mirror Descent algorithm in Section~\ref{sec:OMD} is inspired by~\cite{Bub11}. The definition of Legendre functions comes from \cite[Chapter 11]{CL06} ---further developments on convex analysis can be found in \cite{HL01, BV04}. Theorem~\ref{th:MGD} is taken from \cite{ABL11}, but the proof technique goes back at least to \cite{BN99}. The proof of Theorem~\ref{th:Fnotlegendre} is adapted from \cite{KST10}. Section~\ref{sec:OSMD} is inspired by gradient-free optimization, a topic extensively studied since \cite{RM51, KW52} ---see \cite{NJLS09, CSV09, Nes11, BM11} for recent accounts on this theory.
+%This type of estimator was first proposed in \cite{NY83}, but it has been rediscovered in different communities, %see for example \cite{Spa97, FKM05}. 
+Alternative views have been proposed on the Online Mirror Descent strategy. In particular, it is equivalent to a Follow The Regularized Leader, and to proximal algorithms, see \cite{Rak09}. This viewpoint was pioneered by \cite{BT03} ---see also \cite{BPSS11} for more details. Finally, a notion of universality of Online Mirror Descent in the online prediction setting was proposed by \cite{SST11}.
+
+The online combinatorial optimization problem studied in Section~\ref{sec:semibandit} was introduced by \cite{KV05} for the full information setting. Several works have studied this problem for specific sets $\cC$, see in particular \cite{TW03, WK08, HW09, HKW10, KWK10, WKH11, CL11}. The semi-bandit feedback was studied in the series of papers \cite{GLLO07, KRS10, UNK10, ABL11}. The presentation adopted in this section is based on the last paper. OSMD with negative entropy was first studied by \cite{HW09} for the full information setting and for a specific set $\cC$. It was then studied more generally in \cite{KWK10} for any set $\cC$. The generalization to semi-bandit feedback was done by \cite{ABL11}. OSMD with a Legendre derived from a potential was introduced by \cite{ABL11}. In the case of the simplex, this strategy corresponds to the INF strategy of \cite{AB09} discussed in Section~\ref{sec:logfree}.
+
+Online linear optimization is still far from being completely understood. For instance, see \cite[Chapter 9]{Bub11} for a list of open problems. In this section we also omitted a few important topics related to online linear optimization. We briefly review some of them below.
+
+\subsection{Lower bounds}
+Under the bounded scalar loss assumption, it was proved by \cite{DHK08} that for $\cK=[-1,1]^d$ the minimax regret in the full information setting is at least of order $\sqrt{d n}$, while under bandit feedback it is of order $d \sqrt{n}$. In both cases Exp2 is matching these lower bounds (using John's exploration in the bandit case). 
+
+In the combinatorial setting, where $\cK \subset \{0,1\}^d$ and $\cL = [0,1]^d$, \cite{ABL11} show that the minimax regret in the full information and semi-bandit cases is at least of order $d \sqrt{n}$, while in the bandit case it is of order $d^{3/2} \sqrt{n}$. OSMD with the negative entropy matches the bounds in the full information and semi-bandit cases. However, in the bandit case the best known bound is obtained by Exp2 (with John's exploration) and gives a regret of order $d^2 \sqrt{n}$. It is important to remark that \cite{ABL11} show that Exp2 is a provably suboptimal strategy in the combinatorial setting.
+
+Finally, lower bounds for the full information case, and for a few specific sets $\cK$ of interest, were derived by \cite{KWK10}.
+
+\subsection{High probability bounds} \label{sec:hplinear}
+In this chapter we focused on the pseudo-regret $\oR_n$. However, just like in Chapter \ref{adversarial}, a much more important and interesting statement concerns high probability bounds for the regret $R_n$. Partial results in this direction can be found in \cite{BDHKRT08} for the Exp2 strategy, and in \cite{AR09} for the OSMD algorithm.
+
+\subsection{Stochastic online linear optimization} \label{sec:stochlinear}
+Similarly to the stochastic bandit case (see Chapter \ref{stochastic}), a natural restriction to consider for the adversary is that the sequence of losses $\ell_1,\ell_2,\ldots$ is an i.i.d.\ sequence. This stochastic setting was introduced by \cite{Aue02}, and further studied by \cite{DHK08b}. In particular, in the latter paper it was proved that regrets logarithmic in $n$ and polynomial in $d$ are possible, as long as $\cK$ is a polytope. Recent progress on this problem can be found in \cite{RT10, filippi2010parametric, APS11}.

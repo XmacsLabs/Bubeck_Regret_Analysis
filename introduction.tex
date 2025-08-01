@@ -1,0 +1,128 @@
+A multi-armed bandit problem (or, simply, a bandit problem) is a sequential allocation problem defined by a set of actions. At each time step, a unit resource is allocated to an action and some observable payoff is obtained. The goal is to maximize the total payoff obtained in a sequence of allocations. The name \textsl{bandit} refers to the colloquial term for a slot machine (``one-armed bandit'' in American slang). In a casino, a sequential allocation problem is obtained when the player is facing many slot machines at once (a ``multi-armed bandit''), and must repeatedly choose where to insert the next coin.
+
+Bandit problems are basic instances of sequential decision making with limited information, and naturally address the fundamental trade-off between exploration and exploitation in sequential experiments. Indeed, the player must balance the exploitation of actions that did well in the past and the exploration of actions that might give higher payoffs in the future.
+
+Although the original motivation of \cite{Tho33} for studying bandit problems came from clinical trials (when different treatments are available for a certain disease and one must decide which treatment to use on the next patient), modern technologies have created many opportunities for new applications, and bandit problems now play an important role in several industrial domains. In particular, online services are natural targets for bandit algorithms, because there one can benefit from adapting the service to the individual sequence of requests. We now describe a few concrete examples in various domains.
+
+Ad placement is the problem of deciding which advertisement to display on the web page delivered to the next visitor of a website. Similarly, website optimization deals with the problem of sequentially choosing design elements (font, images, layout) for the web page. Here the payoff is associated with visitor's actions, e.g., clickthroughs or other desired behaviors. Of course there are important differences with the basic bandit problem: in ad placement the pool of available ads (bandit arms) may change over time, and there might be a limit on the number of times each ad could be displayed.
+
+In source routing a sequence of packets must be routed from a source host to a destination host in a given network, and the protocol allows to choose a specific source-destination path for each packet to be sent. The (negative) payoff is the time it takes to deliver a packet, and depends additively on the congestion of the edges in the chosen path.
+
+In computer game-playing, each move is chosen by simulating and evaluating many possible game continuations after the move. Algorithms for bandits (more specifically, for a tree-based version of the bandit problem) can be used to explore more efficiently the huge tree of game continuations by focusing on the most promising subtrees. This idea has been successfully implemented in the MoGo player of \cite{GWMT06}, which plays Go at world-class level. MoGo is based on the UCT strategy for hierarchical bandits of \cite{KS06}, which is in turn derived from the UCB bandit algorithm ---see Chapter~\ref{stochastic}.
+
+%\section{Modeling the multi-armed bandit problem}
+%
+There are three fundamental formalizations of the bandit problem depending on the assumed nature of the reward process: stochastic, adversarial, and Markovian. Three distinct playing strategies have been shown to effectively address each specific bandit model: the UCB algorithm in the stochastic case, the Exp3 randomized algorithm in the adversarial case, and the so-called Gittins indices in the Markovian case. In this survey, we focus on stochastic and adversarial bandits, and refer the reader to the survey by \cite{mahajan2008multi} or to the recent monograph by \cite{GGW11} for an extensive analysis of Markovian bandits.
+
+In order to analyze the behavior of a player or forecaster (i.e., the agent implementing a bandit strategy), we may compare its performance with that of an optimal strategy that, for any horizon of $n$ time steps, consistently plays the arm that is best in the first $n$ steps. In other terms, we may study the \textsl{regret} of the forecaster for not playing always optimally. More specifically, given $K \ge 2$ arms and given sequences $X_{i,1},X_{i,2},\dots$ of unknown rewards associated with each arm $i=1,\dots,K$, we study forecasters that at each time step $t=1,2,\dots$ select an arm $I_t$ and receive the associated reward $X_{I_t,t}$. The regret after $n$ plays $I_1,\dots,I_n$ is defined by
+\begin{equation} \label{eq:regret}
+    R_n = \max_{i=1,\hdots,K} \sum_{t=1}^n X_{i,t} - \sum_{t=1}^n X_{I_t,t}~.
+\end{equation}
+If the time horizon is not known in advance we say that the forecaster is {\em anytime}.
+
+In general, both rewards $X_{i,t}$ and forecaster's choices $I_t$ might be stochastic. This allows to distinguish between the two following notions of averaged regret: the \textsl{expected regret}
+\begin{equation} \label{eq:exp-regret}
+    \E\,R_n = \E\left[\max_{i=1,\hdots,K} \sum_{t=1}^n X_{i,t} - \sum_{t=1}^n X_{I_t,t}\right]
+\end{equation}
+and the \textsl{pseudo-regret}
+%
+\begin{equation} \label{eq:pseudoregret}
+\overline{R}_n = \max_{i=1,\dots,K} \E\left[ \sum_{t=1}^n X_{i,t} - \sum_{t=1}^n X_{I_t,t}\right]~.
+\end{equation}
+%
+In both definitions, the expectation is taken with respect to the random draw of both rewards and forecaster's actions. Note that pseudo-regret is a weaker notion of regret, since one compares to the optimal action in expectation. The expected regret, instead, is the expectation of the regret with respect to the action which is optimal on the sequence of reward realizations. More formally one has $\oR_n \leq \E R_n$. 
+
+In the original formalization of \cite{Rob52}, which builds on the work of~\cite{wald1947sequential} ---see also~\cite{arrow1949bayes}, each arm $i=1,\dots,K$ corresponds to an unknown probability distribution $\nu_i$ on $[0,1]$, and rewards $X_{i,t}$ are independent draws from the distribution $\nu_i$ corresponding to the selected arm.
+%
+\begin{center}
+%\begin{figure}[t]
+\bookbox{\small
+\textbf{The stochastic bandit problem}
+
+\smallskip\noindent
+\textsl{Known parameters:} number of arms $K$ and (possibly) number of rounds $n \ge K$. %; number of rounds $n$ with $n \geq K \geq 2$.
+\\
+\textsl{Unknown parameters:} $K$ probability distributions $\nu_1,\ldots,\nu_K$ on $[0,1]$.
+
+\smallskip\noindent
+For each round $t=1,2,\ldots$
+\begin{itemize}
+\item[(1)]
+the forecaster chooses $I_t \in \{1,\ldots,K \}$;
+\item[(2)]
+given $I_t$, the environment draws the reward $X_{I_t,t} \sim \nu_{I_t}$ independently from the past and reveals it to the forecaster.
+\end{itemize}
+%
+%\smallskip\noindent
+%{\em Goal:} Maximize the cumulative gain $\sum_t Y_t$.
+}
+%\caption{Stochastic multi-armed bandit game.}
+%\label{fig:stochbandit}
+%\end{figure}
+\end{center}
+%
+%Let $K \geq 2$ be the number of actions and for $i \in \{1,\hdots, K\}$ we denote by $\nu_i$ the probability distribution of action $i$ %and by $\mu_i$ its mean. 
+For $i=1,\dots,K$ we denote by $\mu_i$ the mean of $\nu_i$ (mean reward of arm $i$).
+Let
+\[
+    \mu^*=\max_{i=1,\hdots,K} \mu_i \qquad\text{and}\qquad i^* \in \argmax_{i=1,\hdots,K} \mu_i~.
+\]
+In the stochastic setting, it is easy to see that the pseudo-regret can be written as
+\begin{equation} \label{eq:pregretstocha}
+\overline{R}_n = n \mu^* - \sum_{t=1}^n \E\bigl[\mu_{I_t}\bigr]~.
+\end{equation}
+The analysis of the stochastic bandit model was pioneered in the seminal paper of~\cite{LR85}, who introduced the technique of upper confidence bounds for the asymptotic analysis of regret. In Chapter~\ref{stochastic} we describe this technique using the simpler formulation of~\cite{Agr95}, which naturally lends itself to a finite-time analysis.
+
+In parallel to the research on stochastic bandits, a game-theoretic formulation of the trade-off between exploration and exploitation has been independently investigated, although for quite some time this alternative formulation was not recognized as an instance of the multi-armed bandit problem. In order to motivate these game-theoretic bandits, consider again the initial example of gambling on slot machines. We now assume that we are in a rigged casino, where for each slot machine $i=1,\hdots,K$ and time step $t \ge 1$ the owner sets the gain $X_{i,t}$ to some arbitrary (and possibly maliciously chosen) value $g_{i,t} \in [0,1]$. Note that it is not in the interest of the owner to simply set all the gains to zero (otherwise, no gamblers would go to that casino). Now recall that a forecaster selects sequentially one arm $I_t \in \{1,\hdots,K\}$ at each time step $t=1,2,\dots$ and observes (and earns) the gain $g_{I_t,t}$. Is it still possible to minimize regret in such a setting?
+
+Following a standard terminology, we call adversary, or opponent, the mechanism setting the sequence of gains for each arm. If this mechanism is independent of the forecaster's actions, then we call it an \textsl{oblivious} adversary. In general, however, the adversary may adapt to the forecaster's past behaviour, in which case we speak of a \textsl{non-oblivious} adversary. For instance, in the rigged casino the owner may observe the way a gambler plays in order to design even more evil sequences of gains.
+%
+Clearly, the distinction between oblivious and non-oblivious adversary is only meaningful when the player is randomized (if the player is deterministic, then the adversary can pick a bad sequence of gains right at the beginning of the game by simulating the player's future actions). Note, however, that in presence of a non-oblivious adversary the interpretation of regret is ambiguous. Indeed, in this case the assignment of gains $g_{i,t}$ to arms $i=1,\dots,K$ made by the adversary at each step $t$ is allowed to depend on the player's past randomized actions $I_1,\dots,I_{t-1}$. In other words, $g_{i,t} = g_{i,t}(I_1,\dots,I_{t-1})$ for each $i$ and $t$. Now, the regret compares the player's cumulative gain to that obtained by playing the single best arm for the first $n$ rounds. However, had the player consistently chosen the same arm $i$ in each round, namely $I_t = i$ for $t=1,\dots,n$, the adversarial gains $g_{i,t}(I_1,\dots,I_{t-1})$ would have been possibly different than those actually experienced by the player.
+
+The study of non-oblivious regret is mainly motivated by the connection between regret minimization and equilibria in games ---see, e.g.~\cite[Section~9]{ACFS03}. Here we just observe that game-theoretic equilibria are indeed defined similarly to regret: in equilibrium, the player has nSo incentive to behave differently provided the opponent does not react to changes in the player's behaviour. Interestingly, regret minimization has been also studied against \textsl{reactive opponents}, see for instance the works of~\cite{farias2006combining} and~\cite{arora2012online}.
+%
+\begin{center}
+%\begin{figure}[t]
+\bookbox{\small
+\textbf{The adversarial bandit problem}
+
+\smallskip\noindent
+\textsl{Known parameters:} number of arms $K \ge 2$ and (possibly) number of rounds $n \ge K$.
+
+\smallskip\noindent
+For each round $t=1,2,\ldots$
+\begin{itemize}
+\item[(1)]
+the forecaster chooses $I_t \in \{1,\ldots,K \}$, possibly with the help of external randomization;
+\item[(2)]
+simultaneously, the adversary selects a gain vector $g_t=(g_{1,t},\hdots,g_{K,t}) \in [0,1]^K$, possibly with the help of external randomization;
+\item[(3)]
+the forecaster receives (and observes) the reward $g_{I_t,t}$, while the gains of the other arms are not observed.
+\end{itemize}
+%
+%\medskip\noindent
+%{\em Goal:} Maximize the cumulative gain $\sum_{t=1}^n g_{I_t,t}$.
+}
+%\caption{Adversarial multi-armed bandit game.}
+%\label{fig:advbandit}
+%\end{figure}
+\end{center}
+%
+In this adversarial setting the goal is to obtain regret bounds in high probability or in expectation with respect to any possible randomization in the strategies used by the forecaster or the opponent, and irrespective of the opponent. In the case of a non-oblivious adversary this is not an easy task, and for this reason we usually start by bounding the pseudo-regret
+%
+%\begin{equation} \label{eq:pregretadv}
+\[
+\overline{R}_n = \max_{i=1,\dots,K} \E\left[\sum_{t=1}^n g_{i,t} - \sum_{t=1}^n g_{I_t,t}\right]~.
+\]
+%\end{equation}
+%
+Note that the randomization of the adversary is not very important here since we ask for bounds which hold for any opponent.
+%However, by allowing this randomization, we recover the stochastic bandit as a special case of the adversarial bandit. In particular, for stochastic bandits~\eqref{eq:pregretstocha} and~\eqref{eq:pregretadv} coincide.
+On the other hand, it is fundamental to allow randomization for the forecaster ---see Chapter~\ref{adversarial} for details and basic results in the adversarial bandit model.
+This adversarial, or non-stochastic, version of the bandit problem was originally proposed as a way of playing an unknown game against an opponent. The problem of playing a game repeatedly, now a classical topic in game theory, was initiated by the groundbreaking work of James Hannan and David Blackwell. In Hannan's seminal paper~\cite{Han57}, the game (i.e., the payoff matrix) is assumed to be known by the player, who also observes the opponent's moves in each play. Later, \cite{Ban68} considered the problem of a repeated unknown game, where in each game round the player only observes its own payoff. This problem turns out to be exactly equivalent to the adversarial bandit problem with a non-oblivious adversary. Simpler strategies for playing unknown games were more recently proposed by \cite{FoVo98} and \cite{HaMa99,HaMa00}. Approximately at the same time, the problem was re-discovered in computer science by~\cite{ACFS03}. It was them who made apparent the connection to stochastic bandits by coining the term nonstochastic multi-armed bandit problem. 
+
+The third fundamental model of multi-armed bandits assumes that the reward processes are neither i.i.d.\ (like in stochastic bandits) nor adversarial. More precisely, arms are associated with $K$ Markov processes, each with its own state space. Each time an arm $i$ is chosen in state $s$, a stochastic reward is drawn from a probability distribution $\nu_{i,s}$, and the state of the reward process for arm $i$ changes in a Markovian fashion, based on an underlying stochastic transition matrix $M_i$. Both reward and new state are revealed to the player. On the other hand, the state of arms that are not chosen remains unchanged. Going back to our initial interpretation of bandits as sequential resource allocation processes, here we may think of $K$ competing projects that are sequentially allocated a unit resource of work. However, unlike the previous bandit models, in this case the state of a project that gets the resource may change. Moreover, the underlying stochastic transition matrices $M_i$ are typically assumed to be known, thus the optimal policy can be computed via dynamic programming and the problem is essentially of computational nature. The seminal result of~\cite{gittins1979bandit} provides an optimal greedy policy which can be computed efficiently.
+
+A notable special case of Markovian bandits is that of Bayesian bandits. These are parametric stochastic bandits, where the parameters of the reward distributions are assumed to be drawn from known priors, and the regret is computed by also averaging over the draw of parameters from the prior. The Markovian state change associated with the selection of an arm corresponds here to updating the posterior distribution of rewards for that arm after observing a new reward.
+
+Markovian bandits are a standard model in the areas of Operations Research and Economics. However, the techniques used in their analysis are significantly different from those used to analyze stochastic and adversarial bandits. For this reason, in this survey we do not cover Markovian bandits and their many variants.

@@ -1,0 +1,657 @@
+A natural extension of the multi-armed armed problem is obtained by associating side information with each arm. Based on this side information, or context, a notion of ``contextual regret'' is introduced where optimality is defined with respect to the best policy (i.e., mapping from contexts to arms) rather than the best arm. The space of policies, within which the optimum is sought, is typically chosen in order to have some desired structure. A different viewpoint is obtained when contexts are privately accessed by the policies (which are then appropriately called ``experts''). In this case the contextual information is hidden from the forecaster, and arms must be chosen based only on the past estimated performance of the experts.
+
+Contextual bandits naturally arise in many applications. For example, in personalized news article recommendation the task is to select, from a pool of candidates, a news article to display whenever a new user visits a website. The articles correspond to arms, and a reward is obtained whenever the user clicks on the selected article. Side information, in the form of features, can be extracted from both user and articles. For the user this may include historical activities, demographic information, and geolocation; for the articles, we may have content information and categories. See \cite{li2010contextual} for more details on this application of contextual bandits.
+
+
+In general, the presence of contexts creates a wide spectrum of possible variations obtained by combining assumptions on the rewards with assumptions on the nature of contexts and policies. In this chapter we describe just a few of the results available in the literature, and use the bibliographic remarks to mention all those that we are aware of.
+
+\section{Bandits with side information}
+\label{s:context-intro}
+%
+The most basic example of contextual bandits is obtained when game rounds $t=1,2,\dots$ are marked by contexts $s_1,s_2,\dots$ from a given context set $\cS$. The forecaster must learn the best mapping $g : \cS \to \{1,\dots,K\}$ of contexts to arms. We analyze this simple side information setting in the case of adversarial rewards, and we further assume that the sequence of contexts $s_t$ is arbitrary but fixed. The approach we take is the simplest: run a separate instance of Exp3 on each distinct context.
+
+We introduce the following notion of pseudoregret
+\[
+	\oRS_n = \max_{g \,:\, \cS\to\{1,\dots,K\}} \E\left[ \sum_{t=1}^n \ell_{I_t,t} - \sum_{t=1}^n \ell_{g(s_t),t} \right]~.
+\]
+Here $s_t\in\cS$ denotes the context marking the $t$-th game round. A bound on this pseudoregret is almost immediately obtained using the adversarial bandit results from Section~\ref{adversarial}. 
+%
+\begin{theorem}
+\label{th:context-simple}
+There exists a randomized forecaster for bandits with side information (the $\cS$-Exp3 forecaster, defined in the proof) that satisfies
+\[
+	\oRS_n \le \sqrt{2n |\cS| K\ln K}
+\]
+for any set $\cS$ of contexts.
+\end{theorem}
+%
+\begin{proof}
+Let $S = |\cS|$.
+The $\cS$-Exp3 forecaster runs an instance of Exp3 on each context $s\in\cS$. Let $n_s$ the number of times when $s_t=s$ within the first $n$ time steps. Using the bound~(\ref{eq:exp3bound}) established in Theorem~\ref{th:Exp3} we get
+\begin{align*}
+	\max_{g \,:\, \cS\to\{1,\dots,K\}} \E\left[ \sum_{t=1}^n \bigl(\ell_{I_t,t} - \ell_{g(s_t),t}\bigr) \right]
+&=
+	\sum_{s\in\cS} \max_{k=1,\dots,K} \E\left[ \sum_{t \,:\, s_t=s} \bigl(\ell_{I_t,t} - \ell_{k,t} \bigr)\right]
+\\ &\le
+	\sum_{s\in\cS} \sqrt{2 n_s K\ln K}
+\\ &\le
+	\sqrt{2 n S K\ln K}
+\end{align*}
+where in the last step we used Jensen's inequality and the identity $\sum_s n_s = n$.
+\end{proof}
+%
+In subsection~\ref{ss:best-context}, we extend this construction by considering several context sets simultaneously.
+
+A lower bound $\Omega\bigl(\sqrt{nSK}\bigl)$ is an immediate consequence of the adversarial bandit lower bound (Theorem~\ref{th:LBminimax}) under the assumption that a constant fraction of the contexts in $\cS$ marks at least constant fraction of the $n$ game rounds.
+
+
+\section{The expert case}
+\label{s:context-adv}
+%
+We now consider the contextual variant of the basic adversarial bandit model of Chapter~\ref{adversarial}. In this variant there is a finite set of $N$ randomized policies. Following the setting of prediction with expert advice, no assumptions are made on the way policies compute their randomized predictions, and the forecaster experiences the contexts only through the advice provided by the policies. For this reason, in what follows we use the word expert to denote a policy. Calling this a model of contextual bandits may sound a little strange, as the structure of contexts does not seem to play a role here. However, we have decided to include this setting in this chapter because bandit with experts have been used in practical contextual bandit problems -see, e.g., the news recommendation experiment in \cite{beygelzimer2010contextual}.
+
+Formally, at each step $t=1,2,\dots$ the forecaster obtains the expert advice $\bigl(\xi_t^1,\dots,\xi_t^N\bigl)$, where each $\xi_t^j$ is a probability distribution over arms representing the randomized play of expert $j$ at time $t$. If $\ell_t = \bigl(\ell_{1,t},\dots,\ell_{K,t}\bigr) \in [0,1]^K$ is the vector of losses incurred by the $K$ arms at time $t$, then $\E_{i \sim \xi_t^j} \ell_{i,t}$ denotes the expected loss of expert $j$ at time $t$. We allow the expert advice to depend on the realization of the forecaster's past random plays. This fact is explicitely used in the proof of Theorem~\ref{th:theta-regret}.
+
+Similarly to the pseudo-regret~\eqref{eq:pseudoregretadv} for adversarial bandits, we now introduce the pseudo-regret $\oRx_n$ for the adversarial contextual bandit problem,
+\[
+	\oRx_n = \max_{i=1,\dots,N} \E\left[ \sum_{t=1}^n \ell_{I_t,t} - \sum_{t=1}^n \E_{k \sim \xi_t^i} \ell_{k,t} \right]~.
+\]
+
+\begin{figure}[t]
+\bookbox{
+{\em Exp4 (Exponential weights algorithm for Exploration and Exploitation with Experts) without mixing:}
+
+\medskip\noindent
+{Parameter:} a non-increasing sequence of real numbers $(\eta_t)_{t \in \N}$.
+
+\medskip\noindent
+Let $q_1$ be the uniform distribution over $\{1,\hdots,N\}$.
+
+\medskip\noindent
+For each round $t=1,2,\ldots,n$
+\begin{itemize}
+\item[(1)]
+Get expert advice $\xi_t^1,\dots,\xi_t^N$, where each $\xi_t^j$ is a probability distribution over arms.
+\item[(2)]
+Draw an arm $I_t$ from the probability distribution $p_t = \bigl(p_{1,t},\dots,p_{K,t}\bigr)$, where $p_{i,t} = \E_{j \sim q_t} \xi_{i,t}^j$.
+\item[(3)]
+Compute the estimated loss for each arm
+\[
+	\tilde{\ell}_{i,t} = \frac{\ell_{i,t}}{p_{i,t}} \ds1_{I_t = i} \qquad i=1,\dots,K~.
+\]
+\item[(4)]
+Compute the estimated loss for each expert
+\[
+	\tilde{y}_{j,t} = \E_{i \sim \xi_t^j}\tilde{\ell}_{i,t} \qquad j=1,\dots,N~.
+\]
+\item[(5)]
+Update the estimated cumulative loss for each expert
+$\tilde{Y}_{j,t} = \sum_{s=1}^t \tilde{y}_{j,s}$ for $j=1,\dots,N$.
+\item[(6)]
+Compute the new probability distribution over the experts $q_{t+1}=\bigl(q_{1,t+1},\dots,q_{N,t+1}\bigr)$, where
+\[
+	q_{j,t+1} = \frac{\exp{\left(- \eta_t \tilde{Y}_{j,t}\right)}}{\sum_{k=1}^N \exp{\left(- \eta_t \tilde{Y}_{k,t}\right)}}~.
+\]
+\end{itemize}
+}
+\caption{Exp4 forecaster.}
+\label{fig:exp4}
+\end{figure}
+
+In order to bound the contextual pseudo-regret $\oRx_n$, one could naively use the Exp3 strategy of Chapter~\ref{adversarial} on the set of experts. This would give a bound of order $\sqrt{n N \log N}$. In Figure~\ref{fig:exp4} we introduce the contextual forecaster Exp4 for which we show a bound of order $\sqrt{n K \ln N}$. Thus, in this framework we can be competitive even with an exponentially large (with respect to $n$) number of experts.
+
+Exp4 is a simple adaptation of Exp3 to the contextual setting. Exp4 runs Exp3 over the $N$ experts using estimates of the experts' losses $\E_{i \sim \xi_t^j} \ell_{i,t}$. In order to draw arms, Exp4 mixes the expert advice with the probability distribution over experts maintained by Exp3. The resulting bound on the pseudo-regret is of order $\sqrt{nK\ln N}$, where the term $\sqrt{\ln N}$ comes from running Exp3 over the $N$ experts, while $\sqrt{K}$ is a bound on the second moment of the estimated expert losses under the distribution $q_t$ computed by Exp3. Inequality~\eqref{eq:exp4-ineq3} shows that $\E_{j \sim q_t} \tilde{y}^2_{j,t} \le \E_{i \sim p_t} \tilde{\ell}_{i,t}^2$. That is, this second moment is at most that of the estimated arm losses under the distribution $p_t$ computed by Exp4, which in turn is bounded by $\sqrt{K}$ using techniques from Chapter~\ref{adversarial}.
+%
+\begin{theorem}[Pseudo-regret of Exp4]
+\label{th:Exp4}
+Exp4 without mixing and with $\eta_t=\eta = \sqrt{\frac{2 \ln N}{n K}}$ satisfies
+\begin{equation} \label{eq:exp4bound}
+	\oRx_n \leq \sqrt{2 n N \ln K}~.
+\end{equation}
+On the other hand, with $\eta_t = \sqrt{\frac{\ln N}{t K}}$ it satisfies
+\begin{equation} \label{eq:exp4boundanytime}
+	\oRx_n \leq 2 \sqrt{n N \ln K}~.
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+We apply the analysis of Exp3 (Theorem~\ref{th:Exp3}) to a forecaster using distributions $q_t$ over $N$ experts, whose pseudo-losses are $\tilde{y}_{j,t}$ for $j=1,\dots,N$. This immediately gives the inequality
+\begin{equation}
+\label{eq:exp4-exp3}
+	\sum_{t=1}^n \E_{j \sim q_t}\tilde{y}_{j,t}
+\le
+	\tilde{Y}_{k,n} + \frac{\log N}{\eta_n} + \frac{1}{2}\sum_{t=1}^n \eta_t\,\E_{j \sim q_t}\,\tilde{y}_{j,t}^2~.
+\end{equation}
+Now, similarly to \eqref{eq:equalities} in the proof of Theorem~\ref{th:Exp3}, we establish the following inequalities
+\begin{align}
+\label{eq:exp4-ineq1}
+	&\E_{I_t \sim p_t} \tilde{y}_{k,t} = \E_{I_t \sim p_t} \E_{i \sim \xi_t^k} \tilde{\ell}_{i,t} = \E_{i \sim \xi_t^k} \ell_{i,t} = y_{k,t}
+\\
+\label{eq:exp4-ineq2}
+	&\E_{j \sim q_t} \tilde{y}_{j,t} = \E_{j \sim q_t} \E_{i \sim \xi_t^j} \tilde{\ell}_{i,t} = \E_{i \sim p_t} \tilde{\ell}_{i,t} = \ell_{I_t,t}
+\\
+\label{eq:exp4-ineq3}
+	&\E_{j \sim q_t} \tilde{y}^2_{j,t} = \E_{j \sim q_t} \left(\E_{i \sim \xi_t^j} \tilde{\ell}_{i,t}\right)^2 \le \E_{j \sim q_t} \E_{i \sim \xi_t^j} \tilde{\ell}_{i,t}^2 = \E_{i \sim p_t} \tilde{\ell}_{i,t}^2 = \frac{\ell_{I_t,t}^2}{p_{I_t,t}}
+\end{align}
+where we used Jensen's inequality to prove~\eqref{eq:exp4-ineq3}.
+By applying~\eqref{eq:exp4-ineq2} and~\eqref{eq:exp4-ineq3} to~\eqref{eq:exp4-exp3} we get
+\[
+	\sum_{t=1}^n \ell_{I_t,t}
+=
+	\sum_{t=1}^n \E_{j \sim q_t} \tilde{y}_{j,t}
+\le
+	\tilde{Y}_{k,n} + \frac{\log N}{\eta_n} + \frac{1}{2}\sum_{t=1}^n \eta_t\,\frac{\ell_{I_t,t}^2}{p_{I_t,t}}~.
+\]
+Now note that, if we take expectation over the draw of $I_1,\dots,I_n$, using~\eqref{eq:exp4-ineq1} we obtain
+\[
+	\E\,\tilde{Y}_{k,n} = \E\left[\sum_{t=1}^n \E\bigl[\tilde{y}_{j,n} \,\big|\, I_1,\dots,I_{t-1} \bigr] \right] =  \E\left[\sum_{t=1}^n \E_{i \sim \xi_t^k} \ell_{i,t} \right] = \E\,Y_{k,n}~.
+\]
+Hence,
+\[
+	\oRx_n = \max_{k=1,\dots,N} \E\left[ \sum_{t=1}^n \ell_{I_t,t} - Y_{k,n} \right]
+\le
+	 \frac{\log N}{\eta_n} + \frac{K}{2}\sum_{t=1}^n \eta_t~.
+\]
+Choosing $\eta_t$ as in the statement of the Theorem, and using the inequality $\sum_{t=1}^n t^{-1/2} \le 2\sqrt{n}$, concludes the proof.
+\end{proof}
+%
+Besides pseudo-regret, the contextual regret
+\[
+	\Rx_n = \max_{k=1,\dots,N} \left( \sum_{t=1}^n \ell_{I_t,t} - \sum_{t=1}^n \E_{i \sim \xi_t^J} \ell_{i,t} \right)
+\]
+can be also bounded, at least with high probability. Indeed, similarly to the variant Exp3.P of Exp3 (see Section~\ref{sec:regret}), an analogous modification of Exp4, called Exp4.P, satisfies
+\[
+    \Rx_n \le c\sqrt{n K \ln(N \delta^{-1})}
+\]
+for some constant $c > 0$ and with probability at least $1-\delta$, where $\delta \in (0,1)$ is a parameter of the algorithm.
+
+
+\subsection{Competing against the best context set}
+\label{ss:best-context}
+%
+We revisit the basic contextual scenario introduced in Section~\ref{s:context-intro}, where the goal is to compete against the best mapping from contexts to arms. Consider now a class $\theset{\cS_{\theta}}{\theta\in\Theta}$ of context sets. In this new game, each time step $t=1,2,\dots$ is marked by the vector $\bigl(s_{\theta,t}\bigr)_{\theta\in\Theta}$ of contexts, one for each set in $\Theta$. Introduce the pseudoregret
+\[
+	\oR^{\Theta}_n = \max_{\theta\in\Theta} \max_{g \,:\, \cS_{\theta}\to\{1,\dots,K\}} \E\left[ \sum_{t=1}^n \ell_{I_t,t} - \sum_{t=1}^n \ell_{g(s_{\theta,t}),t} \right]~.
+\]
+When $|\Theta|=1$ we recover the contextual pseudoregret $\oRS_n$. In general, when $\Theta$ contains more than one set, the forecaster must learn both the best set $\cS_{\theta}$ and the best function $g : \cS_{\theta}\to\{1,\dots,K\}$ from that set to the set of arms.
+
+We find this variant of contextual bandits interesting because its solution involves a nontrivial combination of two of the main algorithms examined in this chapter: Exp4 and $\cS$-Exp3. In particular, we consider a scenario in which Exp4 uses instances of $\cS$-Exp3 as experts. The interesting aspect is that these experts are learning themselves, and thus the analysis of the combined algorithm requires taking into account the learning process at both levels.
+
+Note that in order to solve this problem we could simply lump all contexts in a big set and use the proof of Theorem~\ref{th:context-simple}. However, this would give a regret bound that depends exponentially in $|\Theta|$. On the other hand, by using Exp4 directly on the set of all policies $g$ (which is of cardinality exponential in $|\Theta|\times|S|$), we could improve this to a bound that scales with $\sqrt{|\Theta|}$. The idea we explore here is to use Exp4 over the class $\Theta$ of ``experts'', and combine this with the $\cS$-Exp3 algorithm of Theorem~\ref{th:context-simple}. This gets us down to a logarithmic dependency on $|\Theta|$, albeit at the price of a worse dependency on $n$.
+
+Intuitively, Exp4 provides competitiveness against the best context set $\cS_{\theta}$, while the instances of the $\cS$-Exp3 algorithm, acting as experts for Exp4, ensure that we are competitive against the best function $g : \cS_{\theta} \to \{1,\dots,K\}$ for each $\theta\in\Theta$. However, by doing so we immediately run into a problem: the $p_t$ used by Exp4 is not the same as the $p_t$'s used by each expert. In order to address this issue, we now show that the analysis of Exp3 holds even when the sequence of plays $I_1,I_2,\dots$ is drawn from a sequence of distributions $q_1,q_2,\dots$ possibly different from the one chosen by the forecaster. The only requirement we need is that each probability in $q_t$ be bounded away from zero.
+%
+\begin{theorem}
+\label{th:exp3-rebel}
+Consider a $K$-armed bandit game in which at each step $t=1,2,\dots$ the played arm $I_t$ is drawn from an arbitrary distribution $q_t$ over arms. Each $q_t$ may depend in an arbitrary way on the pairs $(I_1,\ell_{I_1,1}),\dots,(I_{t-1},\ell_{I_{t-1},t-1})$. Moreover, $q_{t,i} \ge \ve > 0$ for all $i=1,\dots,K$ and $t \ge 1$.
+
+If Exp3 without mixing is run with $\tilde{\ell}_{i,t} = \frac{\ell_{i,t}}{q_{i,t}} \ds1_{I_t = i}$ and $\eta_t = \eta = \sqrt{\frac{2\ln K}{n K}}$ then
+\begin{equation}
+    \max_{k=1,\dots,K} \E_{I^n \sim q^n} \left[ \sum_{t=1}^n \E_{i \sim p_t} \ell_{i,t} - \sum_{t=1}^n \ell_{k,t} \right] \le
+    \sqrt{\frac{2 n}{\ve}\ln K}
+\end{equation}
+where $I^n \sim q^n$ means that each $I_t$ is drawn from $q_t$ for $t=1,\dots,n$, and $p_t$ is the distribution used by Exp3 at time $t$.
+\end{theorem}
+%
+\begin{proof}
+The proof is an easy adaptation of Exp3 analysis (Theorem~\ref{th:Exp3} in Section~\ref{adversarial}) and we just highlight the differences.
+The key step is the analysis of the log-moment of $\tilde{\ell}_{i,t}$:
+\begin{align*}
+    \E_{i \sim p_t} \tilde{\ell}_{i,t} =&\, \frac{1}{\eta} \log \E_{i \sim p_t} \exp{\left(- \eta (\tilde{\ell}_{i,t} - \E_{k \sim p_t} \tilde{\ell}_{k,t}) \right)}
+\\ &-
+    \frac{1}{\eta} \log \E_{i \sim p_t} \exp{\left(- \eta \tilde{\ell}_{i,t} \right)}~.
+\end{align*}
+The first term is bounded in a manner slightly different from the proof of Theorem~\ref{th:Exp3},
+\[
+    \log \E_{i \sim p_t} \exp{\left(- \eta (\tilde{\ell}_{i,t} - \E_{k \sim p_t} \tilde{\ell}_{k,t}) \right)} 
+\le
+    \frac{\eta^2}{2}\,\E_{i \sim p_t}\,\tilde{\ell}_{i,t}^2
+\le
+    \frac{\eta^2}{2}\,\frac{p_{I_t,t}}{q_{I_t,t}^2}~.
+\]
+The analysis of the second term is unchanged:
+Let $\tilde{L}_{i,0}=0$, $\Phi_0(\eta)=0$ and $\Phi_t(\eta) = \frac{1}{\eta} \log \frac{1}{K} \sum_{i=1}^K \exp{\left(- \eta \tilde{L}_{i,t}\right)}$. Then by definition of $p_t$ we have:
+\[
+    - \frac{1}{\eta} \log \E_{i \sim p_t} \exp{\left(- \eta \tilde{\ell}_{i,t} \right)} 
+=
+    \Phi_{t-1}(\eta) - \Phi_{t}(\eta)~.
+\]
+Proceeding again as in the proof of Theorem~\ref{th:Exp3} we obtain
+\begin{align*}
+    \E_{I^n \sim q^n}\left[\sum_{t=1}^n \E_{i \sim p_t} \tilde{\ell}_{i,t}\right]
+\le
+    \E_{I^n \sim q^n}\left[\sum_{t=1}^n \tilde{\ell}_{k,t} + \frac{\eta}{2}\,\frac{p_{I_t,t}}{q_{I_t,t}^2} \right] + \frac{\ln K}{\eta}~.
+\end{align*}
+Now observe that
+\begin{align*}
+    \E_{I_t \sim q_t} \tilde{\ell}_{k,t} = \ell_{k,t}
+\qquad\text{and}\qquad
+    \E_{I_t \sim q_t} \frac{p_{I_t,t}}{q_{I_t,t}^2} = \sum_{i=1}^K \frac{p_{i,t}}{q_{i,t}} \le \frac{1}{\ve}~.
+\end{align*}
+Therefore
+\begin{align*}
+    \E_{I^n \sim q^n}\left[\sum_{t=1}^n \Bigl( \E_{i \sim p_t} \ell_{i,t} - \ell_{k,t} \Bigr) \right]
+&=
+    \E_{I^n \sim q^n}\left[\sum_{t=1}^n \Bigl( \E_{i \sim p_t} \tilde{\ell}_{i,t} - \tilde{\ell}_{k,t} \Bigr) \right]
+\\ &\le
+    \frac{\eta n}{2\ve} + \frac{\ln K}{\eta}~.
+\end{align*}
+Choosing $\eta$ as in the statement of the theorem concludes the proof.
+\end{proof}
+%
+It is left to the reader to verify that the analysis of $\cS$-Exp in Theorem~\ref{th:context-simple} can be combined with the above analysis to give the bound
+\begin{equation}
+\label{eq:exp3-rebel-cont}
+    \max_{g \,:\, \cS\to\{1,\dots,K\}} \E_{I^n \sim q^n} \left[ \sum_{t=1}^n \E_{i \sim p_t} \ell_{i,t} - \sum_{t=1}^n \ell_{g(s_t),t} \right] \le
+    \sqrt{\frac{2 n}{\ve}|\cS|\ln K}~.
+\end{equation}
+%
+Next, we state a bound on the contextual pseudoregret of a variant of Exp4 whose probabilities $p_{i,t}$ satisfy the property $p_{i,t} \ge \tfrac{\gamma}{K}$ for all $i=1,\dots,K$ and $t \ge 1$, where $\gamma > 0$ is a parameter. This is obtained by replacing in Exp4 the assignment $p_{i,t} = \E_{j \sim q_t} \xi_{i,t}^j$ (line 2 in Figure~\ref{fig:exp4}) with the assignment
+\[
+	p_{i,t} = (1-\gamma)\E_{j \sim q_t} \xi_{i,t}^j + \frac{\gamma}{K}
+\]
+where $\gamma > 0$ is the mixing coefficient. This mixing clearly achieves the desired property for each $p_{i,t}$.
+%
+\begin{theorem}[Pseudo-regret of Exp4 with mixing]
+\label{th:exp4-mixing}
+Exp4 with mixing coefficient $\gamma$ and with $\eta_t = \eta = \gamma/K$ satisfies
+\begin{equation}
+\label{eq:exp4bound-mix}
+	\oRx_n \le \frac{\gamma\,n}{2} + \frac{K\ln N}{\gamma}~.
+\end{equation}
+\end{theorem}
+%
+\begin{proof}
+The proof goes along the same lines of Exp4 original proof~\cite[Theorem~7.1]{ACFS03} with the following modifications: since the weights are negative exponentials, we can use the bound $\exp(-x) \le 1 - x + \tfrac{x^2}{2}$ for all $x \ge 0$ rather than $\exp(x) \le 1 + x + (e-2)x^2$ for all $0 \le x \le 1$; the term $(1-\gamma)\sum_t\ell_{k,t}$ is upper bounded directly by $\sum_t\ell_{k,t}$; the term $\tfrac{\gamma}{K}\sum_t\sum_i \ell_{i,t}$ is upper bounded by $\gamma\,n$ without requiring the assumption that the expert set contains the ``uniform expert''. Finally, the fact that experts' distributions $\xi_t^j$ depend on the realization of past forecaster's random arms is dealt with in the same way as in the proof of Theorem~\ref{th:Exp4}.
+\end{proof}
+%
+\begin{theorem}
+\label{th:theta-regret}
+There exists a randomized forecaster achieving
+\[
+	\oR^{\Theta}_n = \mathcal{O}\left(n^{2/3}\left(\max_{\theta\in\Theta}|\cS_{\theta}|K\ln K\right)^{1/3}\sqrt{\ln|\Theta|}\right)
+\]
+for any class $\theset{\cS_{\theta}}{\theta\in\Theta}$ of context sets.
+\end{theorem}
+%
+\begin{proof}
+We run the Exp4 forecaster with mixing coefficient $\gamma$ using instances of the $\cS$-Exp3 algorithm (defined in the proof of Theorem~\ref{th:context-simple}) as experts. Each $\cS$-Exp3 instance is run on a different context set $\cS_{\theta}$ for $\theta\in\Theta$. Let $\xi_t^{\theta}$ be the distribution used at time $t$ by the $\cS$-Exp3 instance running on context set $\cS_{\theta}$ and let $p^n$ be the joint distribution of $I^n = (I_1,\dots,I_n)$ used by Exp4. Since $p_{i,t} \ge \tfrac{\gamma}{K}$ for all $i=1,\dots,K$ and $t\ge 1$, we can use~(\ref{eq:exp3-rebel-cont}) with $\ve = \gamma/K$. Thus, Theorem~\ref{th:exp4-mixing} implies
+\begin{align*}
+    \E_{I^n \sim p^n}\left[ \sum_{t=1}^n \ell_{I_t,t} \right]
+\le &\,
+    \min_{\theta\in\Theta} \E_{I^n \sim p^n}\left[\sum_{t=1}^n \E_{k \sim \xi_t^\theta} \ell_{k,t} \right]
++
+    \frac{\gamma\,n}{2} + \frac{K\ln|\Theta|}{\gamma}
+\\ \le &\,
+    \min_{\theta\in\Theta} \min_{g \,:\, \cS_{\theta}\to\{1,\dots,K\}} \E\left[ \sum_{t=1}^n \ell_{g(s_t),t} \right]
+\\ &
+    + \sqrt{\frac{2 n}{\ve}\max_{\theta\in\Theta}|\cS_{\theta}| \ln K} + \frac{\gamma\,n}{2} + \frac{K\ln |\Theta|}{\gamma}~.
+\end{align*}
+Substituting $\ve = \gamma/K$ in the above expression and choosing $\gamma$ of the order of
+$
+	n^{-1/3}\left(\max_{\theta\in\Theta}|\cS_{\theta}|K\ln K\right)^{1/3}\sqrt{\ln|\Theta|}
+$
+gives the desired result.
+\end{proof}
+%
+Note that in Theorem~\ref{th:theta-regret} the rate is $n^{2/3}$, in contrast to the more usual $n^{1/2}$ bandit rate. This worsening is inherent in the Exp4-over-Exp3 construction. It is not known whether the rate could be improved while keeping the same logarithmic dependence on $|\Theta|$ guaranteed by this construction.
+
+
+\section{Stochastic contextual bandits}
+\label{s:context-stochastic}
+%
+We now move on to consider the case in which policies have a known structure. More specifically, each policy is a function $f$ mapping the context space to the arm space $\{1,\dots,K\}$ and the set $\cF$ of policies is given as an input parameter to the forecaster.
+
+Under this assumption on the policies, the problem can be viewed as a bandit variant of supervised learning. For this reason, here and in the next section we follow the standard notation of supervised learning and use $x$ rather than $s$ to denote contexts.
+
+In supervised learning, we observe data of the form $(x_t,\ell_t)$. In the contextual bandit setting, the observed data are $(x_t,\ell_{I_t,t})$ where $I_t$ is the arm chosen by the forecaster at time $t$ given context $x_t\in\cX$. This connection to supervised learning has steered the focus of research towards stochastic data generation models, which are widespread in the analysis of supervised learning. In the stochastic variant of contextual bandits, contexts $x_t$ and arm losses $\ell_t = (\ell_{1,t},\dots,\ell_{K,t})$ are realizations of i.i.d.\ draws from a fixed and unknown distribution $D$ over $\cX \times [0,1]^K$. In tight analogy with statistical learning theory, a policy $f$ is evaluated in terms of its statistical risk
+$
+    \ell_D(f) = \E_{(x,\ell) \sim D} \ell_{f(x)}
+$.
+Let
+\[
+    f^* = \arginf_{f\in\cF} \ell_D(f)
+\]
+the risk-minimizing policy in the class.
+The regret with respect to the class $\cF$ of a forecaster choosing arms $I_1,I_2,\dots$ is then defined by
+\[
+    \sum_{t=1}^n \ell_{I_t,t} - n\,\ell_D(f^*)~.
+\]
+This can be viewed as the stochastic counterpart of the adversarial contextual regret $\oRx_n$ introduced in Section~\ref{s:context-adv}. The main question is now to characterize the ``price of bandit information'' using the sample complexity of supervised learning as yardstick.
+
+In the rest of this section we focus on the case of $K=2$ arms and parametrize classes $\cF$ of policies $f : \cX\to\{1,2\}$ by their VC-dimension $d$ ---see~\cite{BBL05} for a modern introduction to VC theory. For this setting, we consider the following forecaster.
+%
+%\begin{figure}[t]
+\begin{center}
+\bookbox{
+{\em VE (VC dimension by Exponentiation):}
+
+\medskip\noindent
+{Parameters:} number $n$ of rounds, $n'$ satisfying $1 \le n' \le n$.
+
+\begin{itemize}
+\item[(1)]
+For the first $n'$ rounds, choose arms uniformly at random.
+\item[(2)]
+Build $\cF'\subseteq\cF$ such that for any $f\in\cF$ there is exactly one $f'\in\cF'$ satisfying $f(x_t)=f'(x_t)$ for all $t=1,\dots,n'$.
+\item[(3)]
+For $t=n'+1,\dots,n$ play by simulating Exp4.P using the policies of $\cF'$ as experts.
+\end{itemize}
+}
+\end{center}
+%\caption{VE forecaster.}
+%\label{fig:ve}
+%\end{figure}
+%
+We now show that the per round regret of VE is of order $\sqrt{d/n}$, excluding logarithmic factors. This rate is equal to the optimal rate for supervised learning of VC-classes, showing that ---in this case--- the price of bandit information is essentially zero.
+%
+\begin{theorem}
+For any class $\cF$ of binary policies $f : \cX\to\{0,1\}$ of VC-dimension $d$ and for all $n > d$,
+the forecaster VE run with $n' = \sqrt{n\left(2d\ln\frac{en}{d}+ \ln\frac{3}{\delta}\right)}$ satisfies
+\begin{equation} \label{eq:vebound}
+	\sum_{t=1}^n \ell_{I_t,t} - n\inf_{f\in\cF}\ell_D(f) \leq c\sqrt{n\left(d\ln\frac{en}{d} + \ln\frac{3}{\delta}\right)}
+\end{equation}
+for some constant $c > 0$ and with probability at least $1-\delta$ with respect to both the random data generation and VE's internal randomization.
+\end{theorem}
+%
+\begin{proof}
+Given a sample realization $(x_1,\ell_1),\dots,(x_n,\ell_n)$, let $f'$ the unique element of $\cF'$ such that $f'(x_t) = f^*(x_t)$ for all $t=1,\dots,n'$, where $f^*$ is the risk-minimizing function in $\cF$. Given a sample, we may assume without loss of generality that $\cF$ contains functions restricted on the finite domain $\{x_1,\dots,x_n\}$. Recall Sauer-Shelah lemma ---see, e.g.~\cite{BBL05}, stating that any class $\cF$ of binary functions defined on a finite domain of size $n$ satisfies $|\cF| \le \left(\frac{en}{d}\right)^d$, where $d$ is the VC-dimension of $\cF$. 
+Then, with probability at least $1- \tfrac{\delta}{3}$ with respect to VE's internal randomization,
+\begin{align*}
+    \sum_{t=1}^n &\ell_{I_t,t}
+\le
+    n' + \sum_{t=n'+1}^n \ell_{f'(x_t),t} + c\sqrt{2(n-n')\ln\frac{3|\cF'|}{\delta}}
+\\ &\le
+    n' + \sum_{t=n'+1}^n \bigl( \ell_{f^*(x_t),t} + \ell_{f'(x_t),t} - \ell_{f^*(x_t),t}\bigr) + c\sqrt{2(n-n')\ln\frac{3|\cF'|}{\delta}}
+\\ &\le
+    n' + \sum_{t=n'+1}^n \bigl( \ell_{f^*(x_t),t} + \ds1_{f'(x_t) \neq f^*(x_t)} \bigr) + c\sqrt{2(n-n')\ln\frac{3|\cF'|}{\delta}}
+\\ &\le
+    n' + \sum_{t=n'+1}^n \bigl( \ell_{f^*(x_t),t} + \ds1_{f'(x_t) \neq f^*(x_t)} \bigr) + c\sqrt{2n\left(d\ln\frac{en}{d}+ \ln\frac{3}{\delta}\right)}
+\end{align*}
+where we used $\ell_{i,t}\in [0,1]$ in the penultimate step and the Sauer-Shelah lemma in the last step.
+Now, the term $\sum_t \ell_{f^*(x_t),t}$ is controlled in probability w.r.t.\ the random draw of the sample via Chernoff bounds,
+\[
+    \P\left(\sum_{t=n'+1}^n \ell_{f^*(x_t),t} > (n-n')\,\ell_D(f^*) + \sqrt{\frac{n-n'}{2}\ln\frac{3}{\delta}} \right) \le \delta~.
+\]
+Hence,
+\begin{align*}
+    \sum_{t=1}^n \ell_{I_t,t}
+&\le
+    n' + n\,\ell_D(f^*)
+\\ &+ \sum_{t=n'+1}^n \ds1_{f'(x_t) \neq f^*(x_t)} + c\sqrt{2n\left(d\ln\frac{en}{d}+ \ln\frac{3}{\delta}\right)}
+\end{align*}
+with probability at least $\tfrac{2\delta}{3}$ with respect to both the random sample draw and VE's internal randomization.
+
+The term $\sum_t \ds1_{f'(x_t) \neq f^*(x_t)}$ quantifies the fact that the unique function $f'\in\cF'$ that agrees with $f^*$ on the first $n'$ data points is generally different from $f^*$ on the remaining $n-n'$ points. Since each data point $(x_t,\ell_t)$ is drawn i.i.d., the distribution of a sequence of $n$ pairs remains the same if we randomly permute their positions after drawing them. Hence we can bound
+$
+    \sum_t \ds1_{f'(x_t) \neq f^*(x_t)}
+$
+in probability w.r.t.\ a random permutation $\sigma$ of $\{1,\dots,n\}$. Let $\norm{f-g} = \sum_{t=1}^n \ds1_{f'(x_t) \neq f^*(x_t)}$. Then
+\begin{align*}
+    \P_\sigma&\left(\sum_{t=n'+1}^n \ds1_{f'(x_{\sigma(t)}) \neq f^*(x_{\sigma(t)})} > k\right)
+\\ &\le
+    \P_\sigma\left( \exists f,g \in \cF,\, \norm{f-g} > k \,:\,  f(x_{\sigma(t)})=g(x_{\sigma(t)}),\, t=1,\dots,n' \right)
+\\ &\le
+    |\cF|^2 \left(1-\frac{k}{n}\right)^{n'}
+\\ &\le
+    \left(\frac{en}{d}\right)^{2d} \exp\left(-\frac{kn'}{n}\right)
+\\ &\le
+    \frac{\delta}{3}
+\end{align*}
+for
+\[
+    k \ge \frac{n}{n'}\left(2d\ln\frac{en}{d} + \ln\frac{3}{\delta}\right)~.
+\]
+Now, since we just proved that
+\[
+    \sum_{t=n'+1}^n \ds1_{f'(x_{\sigma(t)}) \neq f^*(x_{\sigma(t)})}
+\le
+    \frac{n}{n'}\left(2d\ln\frac{en}{d} + \ln\frac{3}{\delta}\right)
+\]
+holds with probability at least $\tfrac{\delta}{3}$ for any sample realization, it holds with the same probability for a random sample. Hence, by choosing $n'$ as in the statement of the theorem and overapproximating, we get the desired result.
+\end{proof}
+
+
+\section{The multiclass case}
+\label{s:multiclass}
+%
+A different viewpoint on contextual bandits is provided by the so-called bandit multiclass problem. This is a bandit variant of the online protocol for multiclass classification, where the goal is to sequentially learn a mapping from the context space $\R^d$ to the label space $\{1,\dots,K\}$, with $K \ge 2$. In this protocol the learner keeps a classifier parameterized by a $K \times d$ matrix $W$. At each time step $t=1,2,\dots$ the side information $x_t\in\R^d$ is observed (following standard notations in online classification, here we use $x$ instead of $s$ to denote contexts), and the learner predicts the label $\yhat_t$ maximizing $\bigl(Wx_t\bigr)_i$ over all labels $i=1,\dots,K$. In the standard online protocol, the learner observes the true label $y_t$ associated with $x_t$ after each prediction, and uses this information to adjust $W$. In the bandit version, the learner only observes $\ds1_{\yhat_t \neq y_t}$; that is, whether the prediction at time $t$ was correct or not.
+
+A simple but effective learning strategy for (non-bandit) online classification is the multiclass Perceptron algorithm. This algorithm updates $W$ at time $t$ using the rule $W \leftarrow W + X_t$, where
+$X_t$ is a $K \times d$ matrix with components $\bigl(X_t\bigr)_{i,j} = x_{t,j}\bigl(\ds1_{y_t=i} - \ds1_{\yhat_t=i}\bigr)$. Therefore, the update rule can be rewritten as
+\begin{align*}
+    w_{y_t} &\leftarrow w_{y_t} + x_t
+\\
+    w_{\yhat_t} &\leftarrow w_{\yhat_t} - x_t
+\\
+    w_i &\leftarrow w_i \qquad\qquad \text{for all $i \neq y_t$ and $i \neq \yhat_t$}
+\end{align*}
+where $w_i$ denotes the $i$-th row of matrix $W$.
+Note, in particular, that no update takes place (i.e., $X_t$ is the all zero matrix) when $\yhat_t = y_t$, which means that $y_t$ is predicted correctly.
+
+A straightforward generalization of the Perceptron analysis gives that, on any sequence of $(x_1,y_1),(x_2,y_2),\ldots\in\R^d\times\{1,\dots,K\}$ such that $\norm{x_t} =1$, the number of classification mistakes satisfies the following notion of regret,
+\[
+    \sum_{t=1}^n \ds1_{\yhat_t \neq y_t}
+\le
+    \inf_{U} \left( L_n(U) + 2\norm{U}^2 + \norm{U}\sqrt{2n\bar{L}_n(U)} \right)
+\]
+uniformly over $n \ge 1$, where the infimum is over all $K \times d$ matrices $U$ and $\norm{\,\cdot\,}$ denotes the Frobenius norm. Here $L_n(U)$ denotes the cumulative \textsl{hinge loss} of policy $U$,
+\[
+    L_n(U) = \sum_{t=1}^n \ell_t(U) = \sum_{t=1}^n \Bigl[1 - \bigl(Ux_t\bigr)_{y_t} + \max_{i \neq y_t}\bigl(Ux_t\bigr)_i \Bigr]_+
+\]
+where $[\,\cdot\,]_+ = \max\{0,\,\cdot\,\}$ is the \textsl{hinge} function. Finally, $\bar{L}_n(U) = \tfrac{1}{n}L_n(U)$ is the average hinge loss of $U$.
+
+Note that $\ell_t(U) = 0$ if and only if $\bigl(Ux_t\bigr)_{y_t} \ge 1 + \max_{i \neq y_t}\bigl(Ux_t\bigr)_i$, which can only happen when $y_t = \yhat_t = \argmax_{i}\bigl(Ux_t\bigr)_i$. Moreover, $\ell_t(U) \ge 1$ if and only if $\yhat_t \neq y_t$. This means that $\ell_t$ is a convex upper bound on the mistake indicator function $\ds1_{\yhat_t \neq y_t}$ for the multiclass classifier represented by $U$.
+
+We now introduce a bandit variant of the multiclass Perceptron called Banditron.
+\begin{center}
+%\begin{figure}[t]
+\bookbox{
+{\em Banditron}
+
+\medskip\noindent
+{Parameter:} number $\gamma\in \bigl(0,\tfrac{1}{2}\bigr)$.\\
+Initialize: Set $W_1$ to the zero $K\times d$ matrix.
+
+\smallskip\noindent
+For each round $t=1,2,\dots,n$
+\begin{itemize}
+\item[(1)]
+Observe $x_t\in\R^d$.
+\item[(2)]
+Set ${\dt \yhat_t = \argmax_{i=1,\dots,K} \bigl(W_t\,x_t\bigr)_i }$.
+\item[(3)]
+Predict $Y_t\in\{1,\dots,K\}$ drawn from distribution $p_t = \bigl(p_{1,t},\dots,p_{K,t}\bigr)$ such that $p_{i,t} = (1-\gamma)\ds1_{\yhat_t = i} + \tfrac{\gamma}{K}$.
+\item[(4)]
+Observe $\ds1_{Y_t = y_t}$.
+\item[(5)]
+Update $W_{t+1} = W_t + \tX_t$ where
+\[
+    (\tX_t)_{i,j} = x_{t,j}\left(\frac{\ds1_{Y_t = y_t}\ds1_{Y_t = i}}{p_{i,t}} - \ds1_{\yhat_t = i}\right)~.
+\]
+\end{itemize}
+}
+%\caption{The Banditron algorithm for bandit multiclass problems.}
+%\label{fig:banditron}
+%\end{figure}
+\end{center}
+The Banditron operates in the bandit variant of the online protocol for multiclass classification. As $X_t$ depends on the true label $y_t$, which is only available when the classification is correct, the Banditron computes an estimate $\tX_t$ of $X_t$ via a randomized technique inspired by the nonstochastic multiarmed bandit problem. The label $\yhat_t = \argmax_i \bigl(W\,x_t\bigr)_i$ is used to make the prediction at time $t$ only with probability $1-\gamma$, whereas with probability $\gamma$ a random label is predicted at each time $t$.
+
+We now analyze the expected number of prediction mistakes made by the Banditron algorithm on any sequence of examples $(x_t,y_t)$. Unlike the non-bandit case, where the number of mistakes $M_n$
+after $n$ steps of the multiclass Perceptron provides a ``multiclass regret'' bound $M_n - L_n(U) = \mathcal{O}\bigl(\sqrt{n}\bigr)$, in the bandit case the regret achieved by the variant of the Perceptron is only bounded by $\mathcal{O}\bigl(n^{2/3}\bigr)$.
+%
+\begin{theorem}
+If the Banditron algorithm is run with parameter $\gamma = (K/n)^{1/3}$ on any sequence $(x_1,y_1),\dots,(x_n,y_n) \in \R^d\times\{-1,+1\}$ of examples such that $n \ge 8K$ and $\norm{x_t} = 1$, then the number $M_n$ of prediction mistakes satisfies
+\begin{align*}
+    \E\,M_n
+\le
+    \inf_{U}&\biggl( L_n(U) + \left(1 + \norm{U}\sqrt{2\bar{L}_n(U)}\right)K^{1/3}n^{2/3}
+\\ &+ 2\norm{U}^2 K^{2/3}n^{1/3} + \sqrt{2}\norm{U} K^{1/6}n^{1/3}\biggr)
+\end{align*}
+where the infimum is over all $K \times d$ matrices $U$ and $\bar{L}_n(U) = \tfrac{1}{n}L_n(U)$ is the average hinge loss of $U$.
+\end{theorem}
+%
+\begin{proof}
+We need to bound $M = \sum_t \ds1_{Y_t \neq y_t}$. Let $\E_t$ be the expectation conditioned on the first $t-1$ predictions. We start by bounding the first and second moments of $\tX_t$,
+\begin{align*}
+    \E_t\bigl[(\tX_t)_{i,j}\bigr]
+&=
+    x_{t,j}\sum_{k=1}^K p_{k,t}\left(\frac{\ds1_{k = y_t}\ds1_{k = i}}{p_{k,t}} - \ds1_{\yhat_t = i}\right)
+\\ &=
+    x_{t,j}\bigl(\ds1_{y_t=i} - \ds1_{\yhat_t=i}\bigr) = (X_t)_{i,j}~.
+\end{align*}
+For the second moment, note that
+\begin{align*}
+    \bigl\|\tX_t\bigr\|^2
+&=
+    \sum_{i=1}^K\sum_{j=1}^d x_{t,j}^2\left(\frac{\ds1_{Y_t = y_t}\ds1_{Y_t = i}}{p_{i,t}} - \ds1_{\yhat_t = i}\right)^2
+\\ &=
+    \sum_{i=1}^K\left(\frac{\ds1_{Y_t = y_t}\ds1_{Y_t = i}}{p_{i,t}} - \ds1_{\yhat_t = i}\right)^2
+\end{align*}
+where
+\[
+    \sum_{i=1}^K\left(\frac{\ds1_{Y_t = y_t}\ds1_{Y_t = i}}{p_{i,t}} - \ds1_{\yhat_t = i}\right)^2
+=
+    \left\{ \begin{array}{cl}
+    {\dt \left(\frac{1}{p_{y_t,t}^2} + 1\right) } & \text{if $Y_t = y_t \neq \yhat_t$}
+\\[2mm]
+    {\dt \left(\frac{1}{p_{y_t,t}} - 1\right)^2 } & \text{if $Y_t = y_t = \yhat_t$}
+\\[2mm]
+    1 & \text{otherwise.}
+    \end{array} \right.
+\]
+Therefore, if $y_t \neq \yhat_t$,
+\begin{align*}
+    \E_t\bigl\|\tX_t\bigr\|^2
+&=
+    p_{y_t,t}\left(\frac{1}{p_{y_t,t}^2} + 1\right) + \bigl(1-p_{y_t,t}\bigr)
+\\&=
+    1 + \frac{1}{p_{y,t}}
+=
+    1 + \frac{K}{\gamma}
+\le
+    \frac{2K}{\gamma}
+\end{align*}
+because $p_{i,t} = \gamma$ when $y_t \neq \yhat_t$.
+Otherwise, if $y_t = \yhat_t$
+\begin{align*}
+    \E_t\bigl\|\tX_t\bigr\|^2
+&=
+    p_{y_t,t}\left(\frac{1}{p_{y_t,t}} - 1\right)^2 + \bigl(1-p_{y_t,t}\bigr)
+\\&=
+    \frac{1}{p_{y_t,t}} - 1
+=
+    \frac{1}{1-\gamma} - 1
+\le
+    2\gamma
+\end{align*}
+because $p_{i,t} = 1-\gamma$ when $y_t = \yhat_t$ and $\gamma \le \tfrac{1}{2}$.
+Hence,
+\[
+    \E_t\bigl\|\tX_t\bigr\|^2
+\le
+    2\left(\frac{K}{\gamma}\ds1_{y_t \neq \yhat_t} + \gamma\ds1_{y_t = \yhat_t}\right)~.
+\]
+We are now ready to prove a bound on the expected number of mistakes. Following the standard analysis for the Perceptron algorithm, we derive upper and lower bounds on the expectation of the quantity $\inner{U}{W_{n+1}} = \mathrm{tr}\bigl(U\,W_{n+1}^{\top}\bigr)$, for an arbitrary $K \times d$ matrix $U$.
+First, using Cauchy-Schwartz and Jensen inequalities we obtain
+\begin{align*}
+    \E\inner{U}{W_{n+1}}
+\le
+    \sqrt{\norm{U}^2\E\norm{W_{n+1}}^2}~.
+\end{align*}
+Now
+\begin{align*}
+    \E_n\bigl[\norm{W_{n+1}}^2\bigr]
+&=
+    \E_n\left[\norm{W_n}^2 + 2\inner{W_n}{\tX_n} + \bigl\|\tX_n\bigr\|^2\right]
+\\ &\le
+    \norm{W_n}^2 + \E_n\bigl\|\tX_n\bigr\|^2~.
+\end{align*}
+In order to see why the inequality holds, note that
+\begin{align*}
+    \E_n\inner{W_n}{\tX_n}
+=
+    \inner{W_n}{X_n}
+&=
+    \sum_{i=1}^K \bigl(W_n\,x_t\bigr)_i \bigl(\ds1_{y_n=i} - \ds1_{\yhat_n=i}\bigr)
+\\ &=
+    \bigl(W_n\,x_n\bigr)_{y_n} - \bigl(W_n\,x_n\bigr)_{\yhat_n} \le 0
+\end{align*}
+because $\yhat_n = \argmax_{i=1,\dots,K} \bigl(W_n\,x_n\bigr)_i$ by definition.
+Therefore, since $W_1$ is the zero matrix,
+\begin{align*}
+    \E\norm{W_{n+1}}^2
+&\le
+    \sum_{t=1}^n \E\bigl\|\tX_n\bigr\|^2
+\\ &\le
+    2\sum_{t=1}^n \left(\frac{K}{\gamma}\P\bigl(y_t \neq \yhat_t\bigr) + \gamma\,\P\bigl(y_t = \yhat_t\bigr)\right)
+\\ &\le
+\frac{2K}{\gamma}\sum_{t=1}^n \P\bigl(y_t \neq \yhat_t\bigr) + 2\gamma\,n~.
+\end{align*}
+Thus we have
+\[
+    \E\inner{U}{W_{n+1}} \le \norm{U}\sqrt{\frac{2K}{\gamma}\sum_{t=1}^n \P\bigl(y_t \neq \yhat_t\bigr) + 2\gamma\,n}~.
+\]
+Now we lower bound $\inner{U}{W_{n+1}}$ as follows,
+\begin{align*}
+    \E_n\inner{U}{W_{n+1}}
+&=
+    \E_n\inner{U}{W_n + \tX_n}
+\\ &=
+    \inner{U}{W_n} + \inner{U}{X_n}
+\\ &\ge
+    \inner{U}{W_n} + \ds1_{y_t \neq \yhat_t} - \ell_t(U)
+\end{align*}
+because, by definition of $\ell_t$,
+\begin{align*}
+    \ell_t(U)
+&=
+    \Bigl[1 - \bigl(Ux_t\bigr)_{y_t} + \max_{i \neq y_t}\bigl(Ux_t\bigr)_i \Bigr]_+
+\\ &\ge
+    1 - \bigl(Ux_t\bigr)_{y_t} + \bigl(Ux_t\bigr)_{\yhat_t}
+\\ &\ge
+    \ds1_{y_t \neq \yhat_t} - \bigl(Ux_t\bigr)_{y_t} + \bigl(Ux_t\bigr)_{\yhat_t}
+\\ &=
+    \ds1_{y_t \neq \yhat_t} - \inner{U}{X_t}~.
+\end{align*}
+Therefore, using again the fact that $W_1$ is the zero matrix,
+\[
+    \E\inner{U}{W_{n+1}} \ge \sum_{t=1}^n \P\bigl(y_t \neq \yhat_t\bigr) - \sum_{t=1}^n \ell_t(U)~.
+\]
+Combining the upper and lower bounds on $\inner{U}{W_{n+1}}$ we get
+\[
+    \sum_{t=1}^n \P\bigl(y_t \neq \yhat_t\bigr) - L_n(U)
+\le
+    \norm{U}\sqrt{\frac{2K}{\gamma}\sum_{t=1}^n \P\bigl(y_t \neq \yhat_t\bigr) + 2\gamma\,n}~.
+\]
+Solving for $\sum_t \P\bigl(y_t \neq \yhat_t\bigr)$ and overapproximating yields
+\begin{align*}
+    \sum_{t=1}^n \P\bigl(y_t \neq \yhat_t\bigr)
+&\le
+    L_n(U) + \frac{2K}{\gamma}\norm{U}^2 + \norm{U}\sqrt{\frac{2K}{\gamma} L_n(U) + 2\gamma\,n}
+\\ &=
+    L_n(U) + \frac{2K}{\gamma}\norm{U}^2 + \norm{U}\sqrt{\left(\frac{2K}{\gamma}\,\bar{L}_n(U) + 2\gamma\right)n}~.
+\end{align*}
+Now, since $\P\bigl(y_t \neq Y_t\bigr) = (1-\gamma)\P\bigl(y_t \neq \yhat_t\bigr) + \gamma$,
+\[
+    \sum_{t=1}^n \P\bigl(y_t \neq Y_t\bigr)
+\le
+    L_n(U) + \gamma\,n + \frac{2K}{\gamma}\norm{U}^2 + \norm{U}\sqrt{\left(\frac{2K}{\gamma}\,\bar{L}_n(U) + 2\gamma\right)n}~.
+\]
+Choosing $\gamma$ as in the statement of the theorem yields the desired result.
+Note that $\gamma \le \tfrac{1}{2}$ because we assume $n \ge 8K$.
+\end{proof}
+
+
+\section{Bibliographic remarks} \label{sec:contextual}
+%
+A model of contextual stochastic bandits close to those studied here is introduced by~\cite{wang2005bandit}. The context is provided by a i.i.d.\ sequence of random variables and the rewards for each arm depend on the context through an unknown parametric model beloging to a known class. This result has been generalized to the non i.i.d.\ case by~\cite{wang2005arbitrary}, to the multivariate linear case by~\cite{RT10}, and to the multivariate and nonparametric case by~\cite{PR11}. In~\cite{slivkins2009contextual}, contexts and rewards belong to arbitrary metric spaces, and the unknown function mapping contexts to rewards satisfies a Lipschitz assumption (remarkably, the same algorithm also applies to slowly changing expected rewards and sleeping bandit settings). The case of deterministic covariates (fixed design), finitely many arms, and a linear stochastic dependence between covariates and rewards has been studied in~\cite{Aue02,chu2011contextual} ---see also~\cite{abe1999associative}. The work of~\cite{filippi2010parametric} extends the analysis of fixed design by assuming a generalized linear model to capture the dependence of rewards on covariates.
+
+The simple contextual model analyzed in Section~\ref{s:context-intro}, as well as its extension described in Subsection~\ref{ss:best-context}, are due to~\cite{maillard2011adaptive}. The Exp4 algorithm for the adversarial case was introduced in~\cite{ACFS03}. Subsequent improvements were proposed in the two papers~\cite{beygelzimer2011contextual} (Exp4.P with high-probability bounds) and~\cite{mcmahan2009tighter} (exploitation of correlations in expert advice). The VE algorithm and its analysis in Section~\ref{s:context-stochastic} are also taken from~\cite{beygelzimer2011contextual}.
+
+A stochastic model for contextual bandits with finitely many arms and finitely many states has been investigated by~\cite{NIPS2011_0948} using new sophisticated tools of PAC-Bayesian analysis.
+
+The general stochastic model of Section~\ref{s:context-stochastic} for contextual bandits with finitely many arms is due to~\cite{langford2007epoch}. An efficient algorithm for this model has been recently proposed in~\cite{dudik2011efficient}.
+
+The bandit multiclass model of Section~\ref{s:multiclass} is due to~\cite{langford2007epoch}. The Banditron algorithm and its analysis are from~\cite{kakade2008efficient}. See also~\cite{crammer2011multiclass} and~\cite{hazan2011newtron} for recent variants and improvements.
+
